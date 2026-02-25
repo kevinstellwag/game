@@ -398,59 +398,70 @@ function handlePoker(room, clientId, ws, msg) {
 }
 
 // ==================== MONOPOLY: STRAAT VARIANT ====================
+// Board: sq0=START(bottom-right), clockwise:
+//   sq0-9:   bottom row RIGHT→LEFT  (sq0=BR, sq9=second-from-BL)
+//   sq10:    bottom-left corner (JAIL)
+//   sq11-19: left col BOTTOM→TOP
+//   sq20:    top-left corner (FREE PARKING)
+//   sq21-29: top row LEFT→RIGHT
+//   sq30:    top-right corner (GO TO JAIL)
+//   sq31-39: right col TOP→BOTTOM (sq39=last before START)
 
 const MONO_BOARD = [
-  // idx 0-9: bottom row, right to left (start bottom-right)
-  {n:'START',          t:'go',      emoji:'💰', desc:'Passeer hier voor €400!'},
-  {n:'Crack Steeg',    t:'prop',    emoji:'🏚️', c:'#7B3F00', p:80,  r:8,  desc:'1 kamer. Veel ratten.'},
-  {n:'Kans',           t:'chance',  emoji:'🎲', desc:'Druk op je geluk.'},
-  {n:'Jordaan Slop',   t:'prop',    emoji:'🏚️', c:'#7B3F00', p:100, r:12, desc:'Gezellig als je dronken bent.'},
-  {n:'Energieheffing', t:'tax',     emoji:'⚡', a:150, desc:'Overheid wil geld.'},
-  {n:'Tramlijn 9',     t:'rr',      emoji:'🚋', p:200, r:25, desc:'4 lijnen = rijkdom.'},
-  {n:'AH Straat',      t:'prop',    emoji:'🛒', c:'#4fa8c5', p:120, r:14, desc:'Bonusbroodjes inbegrepen.'},
-  {n:'Kans',           t:'chance',  emoji:'🎲', desc:'Druk op je geluk.'},
-  {n:'Wallen Wijk',    t:'prop',    emoji:'🪟', c:'#4fa8c5', p:140, r:16, desc:'Toeristen graag.'},
-  {n:'Coffeeshop Corner', t:'prop', emoji:'☕', c:'#4fa8c5', p:160, r:20, desc:'Hoge huur, hoge bewoners.'},
-  // idx 10-19: left column, bottom to top
-  {n:'Gevangenis',     t:'jail',    emoji:'🔒', desc:'Gewoon op bezoek... toch?'},
-  {n:'Kattenburgh',    t:'prop',    emoji:'🐱', c:'#e75480', p:180, r:22, desc:'Meer katten dan mensen.'},
-  {n:'Waterleiding',   t:'util',    emoji:'💧', p:150, r:0,  desc:'Huur = dobbelsteen × €10.'},
-  {n:'Kinkerstraat',   t:'prop',    emoji:'🛵', c:'#e75480', p:200, r:26, desc:'Scooters overal.'},
-  {n:'De Pijp',        t:'prop',    emoji:'🥐', c:'#e75480', p:220, r:30, desc:'Avocadotoast €14.'},
-  {n:'Metrolijn',      t:'rr',      emoji:'🚇', p:200, r:25, desc:'4 lijnen = rijkdom.'},
-  {n:'NDSM Loods',     t:'prop',    emoji:'🏭', c:'#f4a460', p:240, r:34, desc:'Hipsters inbegrepen.'},
-  {n:'Post',           t:'chest',   emoji:'📬', desc:'Burenruzie post.'},
-  {n:'Zuidas Tower',   t:'prop',    emoji:'🏢', c:'#f4a460', p:260, r:38, desc:'Pakken en BMWs.'},
-  {n:'Vondelpark',     t:'prop',    emoji:'🌳', c:'#f4a460', p:280, r:42, desc:'Joggers én junkies.'},
-  // idx 20-29: top row, left to right
-  {n:'Gratis Parkeren',t:'free',    emoji:'🚗', desc:'Niets! Geniet ervan.'},
-  {n:'Herengracht',    t:'prop',    emoji:'🏰', c:'#cc2200', p:300, r:48, desc:'Grachtenpand. Steil.'},
-  {n:'Kans',           t:'chance',  emoji:'🎲', desc:'Druk op je geluk.'},
-  {n:'Keizersgracht',  t:'prop',    emoji:'🏰', c:'#cc2200', p:320, r:54, desc:'Nog steiler.'},
-  {n:'Prinsengracht',  t:'prop',    emoji:'🏰', c:'#cc2200', p:340, r:60, desc:'Anne Frank was hier.'},
-  {n:'Buslijn',        t:'rr',      emoji:'🚌', p:200, r:25, desc:'4 lijnen = rijkdom.'},
-  {n:'Museumplein',    t:'prop',    emoji:'🎨', c:'#ccbb00', p:360, r:68, desc:'Toeristen betalen goed.'},
-  {n:'Luxebelasting',  t:'tax',     emoji:'💸', a:200, desc:'Voor de rijken. Dat ben jij.'},
-  {n:'Oud-Zuid Laan',  t:'prop',    emoji:'🏡', c:'#ccbb00', p:380, r:76, desc:'Bomen, stilte, geld.'},
-  {n:'Ga Naar Bak',    t:'gotojail',emoji:'👮', desc:'Geen €400. Direct naar bak.'},
-  // idx 30-39: right column, top to bottom
-  {n:'Apollolaan',     t:'prop',    emoji:'🌴', c:'#228b22', p:400, r:86, desc:'Celebrities en villas.'},
-  {n:'Post',           t:'chest',   emoji:'📬', desc:'Burenruzie post.'},
-  {n:'Buitenveldert',  t:'prop',    emoji:'🏘️', c:'#228b22', p:420, r:94, desc:'Rustig. Te rustig.'},
-  {n:'Kans',           t:'chance',  emoji:'🎲', desc:'Druk op je geluk.'},
-  {n:'Amstelveen Mega',t:'prop',    emoji:'🏗️', c:'#228b22', p:440, r:100, desc:'Mega-pand staat er al.'},
-  {n:'Snelweg',        t:'rr',      emoji:'🚐', p:200, r:25, desc:'4 lijnen = rijkdom.'},
-  {n:'Kans',           t:'chance',  emoji:'🎲', desc:'Druk op je geluk.'},
-  {n:'Leidseplein Ph', t:'prop',    emoji:'🌟', c:'#3333cc', p:480, r:120, desc:'Uitzicht over de stad.'},
-  {n:'Heffing',        t:'tax',     emoji:'🏛️', a:100, desc:'Belasting. Omdat.'},
-  {n:'Rembrandtplein', t:'prop',    emoji:'👑', c:'#3333cc', p:500, r:150, desc:'Het duurste. Ouch.'},
+  // ── BOTTOM ROW (right→left) ──────────────────────────────────────────
+  {n:'START',             t:'go',       emoji:'🏁', desc:'Passeer en ontvang €2.000!'},
+  {n:'Crack Steeg',       t:'prop',     emoji:'🏚️', c:'#8B4513', p:600,  r:20,  desc:'1 kamer. Veel ratten.'},
+  {n:'Gemeentekas',       t:'chest',    emoji:'📬', desc:'Post van de gemeente.'},
+  {n:'Jordaan Slop',      t:'prop',     emoji:'🏠', c:'#8B4513', p:1000, r:40,  desc:'Gezellig als je dronken bent.'},
+  {n:'Inkomstenbelasting',t:'tax',      emoji:'⚡', a:2000, desc:'Betaal €2.000 belasting.'},
+  {n:'Schiphol',          t:'rr',       emoji:'✈️', p:2000, r:250,  desc:'Vliegveld. 4x = jackpot.'},
+  {n:'AH Straat',         t:'prop',     emoji:'🛒', c:'#87CEEB', p:1000, r:60,  desc:'Bonusbroodjes inbegrepen.'},
+  {n:'Kans',              t:'chance',   emoji:'🎲', desc:'Druk op je geluk.'},
+  {n:'Wallen Wijk',       t:'prop',     emoji:'🪟', c:'#87CEEB', p:1200, r:60,  desc:'Toeristen betalen goed.'},
+  {n:'Coffeeshop Corner', t:'prop',     emoji:'☕', c:'#87CEEB', p:1400, r:80,  desc:'Hoge huur, hogere bewoners.'},
+  // ── BOTTOM-LEFT CORNER ───────────────────────────────────────────────
+  {n:'Gevangenis',        t:'jail',     emoji:'🔒', desc:'Op bezoek... toch?'},
+  // ── LEFT COL (bottom→top) ────────────────────────────────────────────
+  {n:'Kattenburgh',       t:'prop',     emoji:'🐱', c:'#FF69B4', p:1400, r:100, desc:'Meer katten dan mensen.'},
+  {n:'Waterleiding',      t:'util',     emoji:'💧', p:1500, r:0,   desc:'Huur = dobbelsteen × €40.'},
+  {n:'Kinkerstraat',      t:'prop',     emoji:'🛵', c:'#FF69B4', p:1400, r:100, desc:'Scooters overal.'},
+  {n:'De Pijp',           t:'prop',     emoji:'🥐', c:'#FF69B4', p:1600, r:120, desc:'Avocadotoast €14.'},
+  {n:'Centraal Station',  t:'rr',       emoji:'🚂', p:2000, r:250,  desc:'Trein. 4x = jackpot.'},
+  {n:'NDSM Loods',        t:'prop',     emoji:'🏭', c:'#FFA500', p:1800, r:140, desc:'Hipsters inbegrepen.'},
+  {n:'Gemeentekas',       t:'chest',    emoji:'📬', desc:'Misschien goed nieuws.'},
+  {n:'Zuidas Tower',      t:'prop',     emoji:'🏢', c:'#FFA500', p:1800, r:140, desc:'Pakken en BMWs.'},
+  {n:'Vondelpark',        t:'prop',     emoji:'🌳', c:'#FFA500', p:2000, r:160, desc:'Joggers en junkies.'},
+  // ── TOP-LEFT CORNER ──────────────────────────────────────────────────
+  {n:'Gratis Parkeren',   t:'free',     emoji:'🚗', desc:'Niets. Geniet ervan.'},
+  // ── TOP ROW (left→right) ─────────────────────────────────────────────
+  {n:'Herengracht',       t:'prop',     emoji:'🏰', c:'#CC2200', p:2200, r:180, desc:'Grachtenpand. Steil.'},
+  {n:'Kans',              t:'chance',   emoji:'🎲', desc:'Druk op je geluk.'},
+  {n:'Keizersgracht',     t:'prop',     emoji:'🏯', c:'#CC2200', p:2200, r:180, desc:'Nog steiler.'},
+  {n:'Prinsengracht',     t:'prop',     emoji:'🏛️', c:'#CC2200', p:2400, r:200, desc:'Anne Frank was hier.'},
+  {n:'Zuid-As Metro',     t:'rr',       emoji:'🚇', p:2000, r:250,  desc:'Metro. 4x = jackpot.'},
+  {n:'Museumplein',       t:'prop',     emoji:'🎨', c:'#FFD700', p:2600, r:220, desc:'Toeristen betalen goed.'},
+  {n:'Luxebelasting',     t:'tax',      emoji:'💸', a:1000, desc:'Betaal €1.000 luxebelasting.'},
+  {n:'Oud-Zuid Laan',     t:'prop',     emoji:'🏡', c:'#FFD700', p:2600, r:220, desc:'Bomen, stilte, geld.'},
+  // ── TOP-RIGHT CORNER ─────────────────────────────────────────────────
+  {n:'Ga Naar Bak',       t:'gotojail', emoji:'🚔', desc:'Geen €2000. Direct naar bak.'},
+  // ── RIGHT COL (top→bottom) ───────────────────────────────────────────
+  {n:'Apollolaan',        t:'prop',     emoji:'🌴', c:'#2E8B57', p:3000, r:260, desc:'Celebrities en villas.'},
+  {n:'Gemeentekas',       t:'chest',    emoji:'📬', desc:'Post uit de dure buurt.'},
+  {n:'Buitenveldert',     t:'prop',     emoji:'🏘️', c:'#2E8B57', p:3000, r:260, desc:'Rustig. Te rustig.'},
+  {n:'Kans',              t:'chance',   emoji:'🎲', desc:'Druk op je geluk.'},
+  {n:'Amstelveen Park',   t:'prop',     emoji:'🏗️', c:'#2E8B57', p:3200, r:280, desc:'Mega-pand staat er al.'},
+  {n:'Snelweg A10',       t:'rr',       emoji:'🚌', p:2000, r:250,  desc:'Bus. 4x = jackpot.'},
+  {n:'Kans',              t:'chance',   emoji:'🎲', desc:'Druk op je geluk.'},
+  {n:'Leidseplein',       t:'prop',     emoji:'🌟', c:'#3333CC', p:3500, r:350, desc:'Uitzicht over de stad.'},
+  {n:'Gemeentebelasting', t:'tax',      emoji:'🏛️', a:750,  desc:'Betaal €750 gemeentebelasting.'},
+  {n:'Rembrandtplein',    t:'prop',     emoji:'👑', c:'#3333CC', p:4000, r:500, desc:'Het duurste pand van Amsterdam.'},
 ];
 
-const MONO_LEVEL_NAMES = ['Kaal','Kraakpand','Rijtjeshuis','Appartement','Villa','Mansion'];
+const MONO_LEVEL_NAMES = ['Leeg','Kraakpand','Rijtjeshuis','Appartement','Villa','Mansion'];
 const MONO_LEVEL_EMOJI = ['🏚️','🏠','🏡','🏢','🏰','👑'];
 
 // Upgrade cost = 60% of purchase price
-function monoUpgradeCost(sq) { return Math.floor((sq.p||100) * 0.6); }
+function monoUpgradeCost(sq) { return Math.floor((sq.p||100) * 0.5); }
 
 // Rent based on level
 function monoCalcRent(sqIdx, gs) {
@@ -460,49 +471,53 @@ function monoCalcRent(sqIdx, gs) {
   if (sq.t === 'rr') {
     const owner = prop.ownerId;
     const count = Object.entries(gs.props).filter(([i,p]) => MONO_BOARD[i].t==='rr' && p.ownerId===owner).length;
-    return 25 * count;
+    return [0,250,500,1000,2000][count] || 250 * count;
   }
   if (sq.t === 'util') {
-    return (gs.lastDiceSum||7) * 10;
+    return (gs.lastDiceSum||7) * 40;
   }
-  const mults = [1, 2, 3.5, 6, 10, 16];
+  const mults = [1, 2, 4, 8, 14, 20];
   return Math.round((sq.r||10) * (mults[prop.level]||1));
 }
 
 const MONO_CHANCE = [
-  {txt:'Je wint een weddenschap! 🎉', eff:{t:'money', v:200}},
-  {txt:'Belastingteruggave! 💵', eff:{t:'money', v:150}},
-  {txt:'Oom Henk is dood. Je erft €300 🪦', eff:{t:'money', v:300}},
-  {txt:'Parkeerboete. -€100 🚔', eff:{t:'money', v:-100}},
-  {txt:'Ziekenhuisrekening. -€200 🏥', eff:{t:'money', v:-200}},
-  {txt:'Loterij! +€500 🎰', eff:{t:'money', v:500}},
-  {txt:'Terug naar START. Pak €400! 💰', eff:{t:'goto', pos:0, bonus:400}},
+  {txt:'Je wint een weddenschap! +€500 🎉', eff:{t:'money', v:500}},
+  {txt:'Belastingteruggave! +€1.000 💵', eff:{t:'money', v:1000}},
+  {txt:'Oom Henk is dood. Je erft €2.000 🪦', eff:{t:'money', v:2000}},
+  {txt:'Parkeerboete. -€500 🚔', eff:{t:'money', v:-500}},
+  {txt:'Ziekenhuisrekening. -€1.000 🏥', eff:{t:'money', v:-1000}},
+  {txt:'Straatloterij! +€3.000 🎰', eff:{t:'money', v:3000}},
+  {txt:'Terug naar START! Pak €2.000 💰', eff:{t:'goto', pos:0, bonus:2000}},
   {txt:'Rechtstreeks naar de gevangenis 🔒', eff:{t:'jail'}},
-  {txt:'Vrijlatingspas! Bewaar voor later 🗝️', eff:{t:'freepass'}},
-  {txt:'Iedereen geeft jou €50! 🤑', eff:{t:'collect', v:50}},
-  {txt:'Je trakteert iedereen. -€40 per persoon 🍺', eff:{t:'payall', v:40}},
-  {txt:'Reparaties! -€40 per pand dat je hebt 🔧', eff:{t:'perprop', v:40}},
+  {txt:'Vrijlatingspas gevonden! Bewaar voor later 🗝️', eff:{t:'freepass'}},
+  {txt:'Iedereen geeft jou €500! 🤑', eff:{t:'collect', v:500}},
+  {txt:'Je trakteert iedereen op kroketjes. -€300 per persoon 🍺', eff:{t:'payall', v:300}},
+  {txt:'Dakgoot kapot! -€500 per pand 🔧', eff:{t:'perprop', v:500}},
+  {txt:'Cryptobelegging GECRASHED. -€2.000 📉', eff:{t:'money', v:-2000}},
+  {txt:'Je wint een rechtszaak! +€1.500 ⚖️', eff:{t:'money', v:1500}},
 ];
 
 const MONO_CHEST = [
-  {txt:'Rekening van de verhuurder. -€150 📄', eff:{t:'money', v:-150}},
-  {txt:'Buren klagen. -€75 😤', eff:{t:'money', v:-75}},
-  {txt:'Je verkoopt je Vespa. +€120 🛵', eff:{t:'money', v:120}},
-  {txt:'Bonus van de baas! +€250 💼', eff:{t:'money', v:250}},
+  {txt:'WOZ-aanslag. -€800 📄', eff:{t:'money', v:-800}},
+  {txt:'Buren klagen over geluidsoverlast. -€400 😤', eff:{t:'money', v:-400}},
+  {txt:'Je verkoopt je Vespa op Marktplaats. +€600 🛵', eff:{t:'money', v:600}},
+  {txt:'Jaareinde bonus! +€1.500 💼', eff:{t:'money', v:1500}},
   {txt:'Gewoon de bak in. Nu. 🔒', eff:{t:'jail'}},
-  {txt:'Buren betalen jou elk €30 🏘️', eff:{t:'collect', v:30}},
-  {txt:'Gemeentesubsidie! +€100 🏛️', eff:{t:'money', v:100}},
-  {txt:'Waterleiding gesprongen. -€180 💧', eff:{t:'money', v:-180}},
-  {txt:'Gewonnen bij de rechtbank! +€200 ⚖️', eff:{t:'money', v:200}},
+  {txt:'Buurtfeest: iedereen betaalt jou €300 🏘️', eff:{t:'collect', v:300}},
+  {txt:'Energiesubsidie! +€750 🏛️', eff:{t:'money', v:750}},
+  {txt:'Riool gesprongen onder je pand. -€1.200 💧', eff:{t:'money', v:-1200}},
+  {txt:'Gewonnen bij de rechtbank! +€1.000 ⚖️', eff:{t:'money', v:1000}},
+  {txt:'Huurders staken! Miss een beurt. Maar geen kosten. ✊', eff:{t:'money', v:0}},
+  {txt:'Fout geld gevonden in je muur. +€2.500 🤑', eff:{t:'money', v:2500}},
 ];
 
 const MONO_SPIN = [
-  {txt:'🎉 VRIJUIT! Agent had zijn donut.', type:'free',  prob:0.28},
-  {txt:'💸 Boete €75. Betaal de agent.', type:'fine',  v:75,  prob:0.22},
-  {txt:'💸 Boete €150. Pech!', type:'fine',  v:150, prob:0.18},
-  {txt:'💸 Boete €300. Zware dag.', type:'fine',  v:300, prob:0.10},
-  {txt:'🔒 GEARRESTEERD! Naar de gevangenis!', type:'jail', prob:0.12},
-  {txt:'🏃 ACHTERVOLGING! 3 stappen terug.', type:'chase',prob:0.10},
+  {txt:'🎉 VRIJUIT! Agent at zijn donut en zag niks.', type:'free',  prob:0.25},
+  {txt:'💸 Rijboete €300. Had je gordel op?', type:'fine',  v:300,  prob:0.20},
+  {txt:'💸 Snelheidsboete €600. Beetje snel!', type:'fine',  v:600, prob:0.18},
+  {txt:'💸 Rijden onder invloed €1.500. Au.', type:'fine',  v:1500, prob:0.12},
+  {txt:'🔒 GEARRESTEERD! Rechtstreeks naar de gevangenis!', type:'jail', prob:0.13},
+  {txt:'🏃 ACHTERVOLGING! Je ontsnapt maar gaat 3 stappen terug.', type:'chase',prob:0.12},
 ];
 
 function monoSpin() {
@@ -580,7 +595,7 @@ function startMonopoly(room) {
     players: allPlayers, copId,
     realPlayers: players,
     pos:       Object.fromEntries(allPlayers.map(p=>[p,0])),
-    money:     Object.fromEntries(allPlayers.map(p=>[p,0])), // cop has no money
+    money:     Object.fromEntries(allPlayers.map(p=>[p, p==='cop' ? 0 : 1500])),
     jail:      Object.fromEntries(allPlayers.map(p=>[p,false])),
     jailTurns: Object.fromEntries(allPlayers.map(p=>[p,0])),
     freePass:  Object.fromEntries(allPlayers.map(p=>[p,false])),
@@ -707,7 +722,7 @@ function handleMonopoly(room, clientId, ws, msg) {
         gs.log.unshift(`🎉 ${name} gooide dubbel! Vrij!`);
       } else if (gs.jailTurns[clientId]>=3) {
         gs.jail[clientId]=false; gs.jailTurns[clientId]=0;
-        gs.money[clientId] = (gs.money[clientId]||0) - 150;
+        gs.money[clientId] = (gs.money[clientId]||0) - 500;
         gs.log.unshift(`${name} betaalt €150 borgtocht en is vrij.`);
         monoCheckBankruptcy(gs, clientId);
       } else {
@@ -721,7 +736,7 @@ function handleMonopoly(room, clientId, ws, msg) {
     const newPos = gs.pos[clientId];
 
     if (newPos < oldPos && !gs.jail[clientId]) {
-      gs.money[clientId] = (gs.money[clientId]||0) + 400;
+      gs.money[clientId] = (gs.money[clientId]||0) + 2000;
       gs.log.unshift(`${name} passeert START! +€400 💰`);
     }
 

@@ -160,7 +160,8 @@ input,textarea,button{font-family:'Nunito',sans-serif}
 .sub-counter{margin-top:0.75rem;font-weight:800;color:var(--accent4)}
 .judge-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:0.6rem;margin-top:0.75rem}
 .judge-card:hover{transform:translateY(-6px) rotate(1deg);box-shadow:0 10px 28px rgba(0,0,0,0.5)}
-.round-winner{text-align:center;padding:1.5rem;background:linear-gradient(135deg,rgba(255,215,0,0.12),rgba(255,107,107,0.12));border-radius:var(--r);border:2px solid rgba(255,215,0,0.25);margin-bottom:0.75rem}
+.round-winner{text-align:center;padding:1.25rem;background:linear-gradient(135deg,rgba(255,215,0,0.12),rgba(255,107,107,0.12));border-radius:var(--r);border:2px solid rgba(255,215,0,0.25);margin-bottom:0.75rem}
+.cah-combo-card{background:#000;color:white;border-radius:12px;padding:1.1rem 1.25rem;margin:0.75rem 0 0.25rem;font-size:1.05rem;font-weight:700;line-height:1.6;text-align:left;border:2px solid rgba(255,255,255,0.15);box-shadow:0 4px 20px rgba(0,0,0,0.5)}
 .round-winner h3{font-family:'Bangers',cursive;font-size:1.8rem;letter-spacing:3px;color:var(--accent2)}
 .round-winner p{color:var(--text2);margin-top:0.3rem;font-style:italic}
 .game-winner{text-align:center;padding:2rem;background:linear-gradient(135deg,rgba(255,215,0,0.2),rgba(255,107,107,0.2));border-radius:var(--r);border:2px solid rgba(255,215,0,0.4);margin-bottom:0.75rem}
@@ -214,9 +215,10 @@ input,textarea,button{font-family:'Nunito',sans-serif}
 
 /* BOARD */
 .mono-board-container{position:relative;width:100%;max-width:520px;margin:0 auto 0.75rem;aspect-ratio:1}
-.mono-board{display:grid;grid-template-columns:repeat(10,1fr);grid-template-rows:repeat(10,1fr);gap:2px;width:100%;height:100%;background:#000;border-radius:10px;padding:2px;border:2px solid #1a3a1a}
-.mcell{border-radius:3px;padding:2px;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;border:1px solid rgba(255,255,255,0.04);cursor:default;transition:filter 0.15s;min-width:0;min-height:0}
+.mono-board{display:grid;grid-template-columns:repeat(11,1fr);grid-template-rows:repeat(11,1fr);gap:1px;width:100%;height:100%;background:#000;border-radius:10px;padding:2px;border:2px solid #1a3a1a}
+.mcell{border-radius:2px;padding:1px;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;border:1px solid rgba(255,255,255,0.04);cursor:default;transition:filter 0.15s;min-width:0;min-height:0}
 .mcell:hover{filter:brightness(1.3);z-index:2}
+.mcell-inner{background:#0d0d18!important;border:none!important;pointer-events:none}
 .mcell-empty{background:transparent!important;border:none!important}
 .mcell-emoji{font-size:clamp(0.5rem,1.8vw,1rem);line-height:1;margin-top:1px}
 .mcell-name{font-size:clamp(0.25rem,0.9vw,0.45rem);color:rgba(255,255,255,0.6);text-align:center;line-height:1.1;overflow:hidden;max-height:1.5em;word-break:break-all}
@@ -227,7 +229,7 @@ input,textarea,button{font-family:'Nunito',sans-serif}
 @keyframes tokenPop{0%{transform:scale(0)}60%{transform:scale(1.3)}100%{transform:scale(1)}}
 
 /* CENTER */
-.mono-center{position:absolute;top:10%;left:10%;right:10%;bottom:10%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#0a1a0a,#0d0d1a);border-radius:8px;border:1px solid #1a3a1a;overflow:hidden}
+.mono-center{position:absolute;top:9.1%;left:9.1%;right:9.1%;bottom:9.1%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#0a1a0a,#0d0d1a);border-radius:6px;border:1px solid #1a3a1a;overflow:hidden;z-index:10}
 .mono-center-title{font-family:'Bangers',cursive;font-size:clamp(0.8rem,3vw,1.5rem);letter-spacing:3px;color:#6bcb77;text-align:center;text-shadow:0 0 20px rgba(107,203,119,0.4)}
 .mono-legend{display:flex;flex-direction:column;gap:2px;margin-top:0.4rem;width:100%;padding:0 0.4rem}
 .mono-legend-row{display:flex;align-items:center;gap:0.3rem;opacity:1;transition:opacity 0.3s}
@@ -851,20 +853,32 @@ const CAH = {
     const winnerPlayer = myRoomState?.players?.find(p => p.id === state.winner);
     const lastWinnerPlayer = myRoomState?.players?.find(p => p.id === state.lastWinner);
 
+    // Build the full winning combo: black card with answer filled in
+    const blackText = state.lastBlackCard || state.currentBlack || '';
+    const answer = state.lastWinningCard || '';
+    const combo = blackText.includes('___')
+      ? blackText.replace('___', `<strong style="color:#ffd93d;font-size:1.15em">${esc(answer)}</strong>`)
+      : `${esc(blackText)} <strong style="color:#ffd93d">${esc(answer)}</strong>`;
+
     area.innerHTML = `
       ${state.winner ? `
         <div class="game-winner">
           <div style="font-size:3.5rem">🏆</div>
           <h2>${esc(winnerPlayer?.name||'?')} WINT HET SPEL!</h2>
-          <p style="color:var(--text2);margin-top:0.4rem">Met ${state.scores?.[state.winner]||maxPts} punten. Wat een legend.</p>
+          <p style="color:var(--text2);margin-top:0.4rem">Met ${state.scores?.[state.winner]||maxPts} punten.</p>
         </div>
-      ` : `
+      ` : ''}
+
+      ${state.lastWinner ? `
         <div class="round-winner">
-          <div style="font-size:2.5rem">🎉</div>
+          <div style="font-size:2rem">🎉</div>
           <h3>${esc(lastWinnerPlayer?.name||'?')} wint deze ronde!</h3>
-          <p>"${esc(state.lastWinningCard||'')}"</p>
+          <div class="cah-combo-card">
+            <div class="cah-combo-text">${combo}</div>
+          </div>
         </div>
-      `}
+      ` : ''}
+
       <div style="margin-bottom:0.75rem">
         ${(myRoomState?.players||[])
           .sort((a,b)=>(state.scores?.[b.id]||0)-(state.scores?.[a.id]||0))
@@ -1228,62 +1242,70 @@ const Mono = {
   },
 
   renderBoardHTML(state) {
-    // 10x10 grid: corners at 0,10,20,30
-    // bottom row: 9→0 (indices 9,8,7,6,5,4,3,2,1,0) — displayed left to right
-    // We render 100 cells: row 0=top, row 9=bottom
-    // Actual board traversal: bottom-right=0, going counter-clockwise
-    // Grid position mapping:
-    //   row 9 (bottom): col 9=sq0, col8=sq1, ..., col0=sq9
-    //   col 0 (left):   row8=sq10, row7=sq11, ..., row0=sq19  (wait - row9 is bottom)
-    //   Actually: col0: row9=sq9's left neighbor... 
-    // Let me use the standard Monopoly layout:
-    //   Bottom row (row 9, left to right): sq9..sq0  → cols 0..9
-    //   Left col (col 0, bottom to top): sq10..sq19 → rows 8..0  (but row 9 col 0 = sq9, already done)
-    //   Wait, corners:  sq0=bottom-right, sq10=bottom-left, sq20=top-left, sq30=top-right
+    // Use a simple 11x11 grid with 4*10=40 border cells = 40 board squares
+    // Inner 9x9 cells are empty (used for center panel via CSS)
+    // sq0 = bottom-left (START), going clockwise:
+    //   sq0-9:   bottom row, left→right  (r10, c0→c9)
+    //   sq10-19: right col, bottom→top   (c10, r9→r0)  [using 11-col grid]
+    //   sq20-29: top row, right→left     (r0, c10→c1)
+    //   sq30-39: left col, top→bottom    (c0, r1→r9... but only 9 cells so skip one)
+    // Simpler: just build a flat list of 40 {r,c} positions for an 11x11 grid
     
-    const grid = Array(10).fill(null).map(()=>Array(10).fill(null));
-    // Bottom row (row 9): sq0..sq9 from right to left → col 9..0
-    for(let i=0;i<10;i++) grid[9][9-i] = i;
-    // Left col (col 0): sq10..sq19 from bottom to top → row 8..0
-    for(let i=0;i<10;i++) grid[8-i][0] = 10+i;
-    // Top row (row 0): sq20..sq29 from left to right → col 0..9
-    // col 0 is already sq19 handled, so sq20=col1? No:
-    // sq20 is top-left corner. In standard Monopoly top-left is "Free Parking".
-    for(let i=0;i<10;i++) grid[0][i] = 20+i;
-    // Right col (col 9): sq30..sq39 from top to bottom → row 1..9
-    // row 0 col 9 = sq29 already done
-    for(let i=0;i<9;i++) grid[1+i][9] = 30+i;
+    // 11 columns, 11 rows = 121 cells. Border = 4*11-4 = 40. 
+    const SIZE = 11;
+    const gridPos = []; // index = sq number, value = {r, c}
+    // Bottom row (r=10, c=0..10): sq0..sq10
+    for(let i=0;i<=10;i++) gridPos.push({r:10, c:i});
+    // Right col (c=10, r=9..0): sq11..sq19 (9 squares, going up excluding corner)
+    for(let i=9;i>=1;i--) gridPos.push({r:i, c:10});
+    // Top row (r=0, c=10..0): sq20..sq30
+    for(let i=10;i>=0;i--) gridPos.push({r:0, c:i});
+    // Left col (c=0, r=1..9): sq31..sq39 (9 squares going down excluding corners)
+    for(let i=1;i<=9;i++) gridPos.push({r:i, c:0});
+    // Total: 11+9+11+9 = 40 ✓
+
+    // Build 11x11 grid
+    const grid = Array(SIZE+1).fill(null).map(()=>Array(SIZE+1).fill(-1));
+    gridPos.forEach(({r,c}, sqIdx) => { if(sqIdx<40) grid[r][c] = sqIdx; });
 
     let html = '';
-    for(let r=0;r<10;r++) {
-      for(let c=0;c<10;c++) {
+    for(let r=0;r<=10;r++) {
+      for(let c=0;c<=10;c++) {
         const sqIdx = grid[r][c];
-        if (sqIdx === null) { html += '<div class="mcell mcell-empty"></div>'; continue; }
-        const sq = MONO_BOARD_CLIENT[sqIdx];
+        // Skip inner cells (they're covered by the center overlay via CSS)
+        if(sqIdx === -1) {
+          html += '<div class="mcell mcell-inner"></div>';
+          continue;
+        }
+        const sq = MONO_BOARD_CLIENT[sqIdx] || {n:'?',t:'?',emoji:'?',c:'#1a1a2e'};
         const prop = state.props?.[sqIdx];
-        const ownerIdx = prop ? state.players.indexOf(prop.ownerId) : -1;
-        const isCopOwner = prop?.ownerId === state.copId;
+        // Find owner color - use realPlayers for color index
+        const realPlayers = state.realPlayers || state.players || [];
+        const ownerRealIdx = prop ? realPlayers.indexOf(prop.ownerId) : -1;
 
-        // Who is here?
-        const here = state.players.filter(pid => {
-          const displayPos = monoAnimPos[pid] !== undefined ? monoAnimPos[pid] : state.pos[pid];
+        // Who is on this square?
+        const allPids = [...(state.players||[])]; // includes cop
+        const here = allPids.filter(pid => {
+          const displayPos = monoAnimPos[pid] !== undefined ? monoAnimPos[pid] : (state.pos?.[pid]||0);
           return displayPos === sqIdx;
         });
 
-        html += `<div class="mcell mcell-${sq.t}" style="background:${sq.c||'#1a1a2e'}" data-idx="${sqIdx}" title="${sq.n}">`;
-        // Color band for owned property
-        if (prop && ownerIdx >= 0) {
-          html += `<div class="mcell-owner-band" style="background:${isCopOwner?'#ffd93d':PLAYER_COLORS[ownerIdx]}"></div>`;
+        html += `<div class="mcell mcell-${sq.t}" style="background:${sq.c||'#1a1a2e'}" title="${sq.n}">`;
+        if(prop && ownerRealIdx >= 0) {
+          html += `<div class="mcell-owner-band" style="background:${PLAYER_COLORS[ownerRealIdx]}"></div>`;
         }
         html += `<div class="mcell-emoji">${sq.emoji||'?'}</div>`;
-        html += `<div class="mcell-name">${sq.n.split(' ')[0]}</div>`;
-        if (prop?.level > 0) html += `<div class="mcell-level">${LEVEL_EMOJI[prop.level]}</div>`;
+        html += `<div class="mcell-name">${sq.n.split(' ').slice(0,2).join(' ')}</div>`;
+        if(prop?.level > 0) html += `<div class="mcell-level">${LEVEL_EMOJI[prop.level]}</div>`;
         html += `<div class="mcell-tokens">`;
         here.forEach(pid => {
-          const pi = state.players.indexOf(pid);
-          const isc = pid===state.copId;
+          const isc = pid === 'cop';
+          const realIdx = realPlayers.indexOf(pid);
           const p = myRoomState?.players?.find(pl=>pl.id===pid);
-          html += `<span class="mtoken-sm" style="background:${isc?'#ffd93d':PLAYER_COLORS[pi]};color:${isc?'#111':'white'}">${isc?'👮':(p?.name||'?').charAt(0).toUpperCase()}</span>`;
+          const label = isc ? '👮' : (p?.name||'?').charAt(0).toUpperCase();
+          const bg = isc ? '#ffd93d' : (PLAYER_COLORS[realIdx]||'#888');
+          const fg = isc ? '#111' : 'white';
+          html += `<span class="mtoken-sm" style="background:${bg};color:${fg}">${label}</span>`;
         });
         html += `</div></div>`;
       }

@@ -210,7 +210,13 @@ input,textarea,button{font-family:'Nunito',sans-serif}
 .mono-tb-left{display:flex;align-items:center;gap:0.4rem;min-width:90px}
 .mono-tb-mid{flex:1;text-align:center}
 .mono-tb-right{display:flex;align-items:center;gap:0.4rem;justify-content:flex-end;min-width:90px}
-.mono-die{font-size:1.4rem;line-height:1;animation:dieRoll 0.3s ease}
+.mono-die{font-size:1.4rem;line-height:1;transition:all 0.1s;display:inline-block}
+.die-rolling{animation:dieRollCont 0.3s ease infinite;filter:blur(0.5px);opacity:0.7}
+@keyframes dieRollCont{0%{transform:rotate(-15deg) scale(0.85)}50%{transform:rotate(15deg) scale(1.1)}100%{transform:rotate(-15deg) scale(0.85)}}
+.die-spin{animation:dieSpin 0.06s ease;filter:blur(1px)}
+@keyframes dieSpin{0%{transform:rotate(-20deg) scale(0.75)}50%{transform:rotate(10deg) scale(1.15)}100%{transform:rotate(0) scale(1)}}
+.die-land{animation:dieLand 0.35s cubic-bezier(0.34,1.56,0.64,1)}
+@keyframes dieLand{0%{transform:scale(0.5) rotate(-20deg)}60%{transform:scale(1.4) rotate(5deg)}100%{transform:scale(1) rotate(0)}}
 @keyframes dieRoll{0%{transform:rotate(-30deg) scale(0.7)}100%{transform:rotate(0) scale(1)}}
 .mono-dsum{font-family:Bangers,cursive;font-size:1.1rem;color:#ffd93d;margin-left:0.2rem}
 .mono-noroll{color:#556;font-size:0.85rem}
@@ -1225,70 +1231,71 @@ const Poker = {
 //   sq30:    GO TO JAIL top-right corner
 //   sq31-39: right col TOP→BOTTOM
 
-// Color groups matching real Monopoly
+// Color groups — match server sq indices exactly
 const STREET_COLORS = {
-  brown:  { hex:'#8B4513', name:'Bruin',  streets:[1,3]       },
-  lblue:  { hex:'#00BFFF', name:'Lichtblauw', streets:[6,8,9] },
-  pink:   { hex:'#FF69B4', name:'Roze',   streets:[11,13,14]  },
-  orange: { hex:'#FF8C00', name:'Oranje', streets:[16,18,19]  },
-  red:    { hex:'#CC2200', name:'Rood',   streets:[21,23,24]  },
-  yellow: { hex:'#FFD700', name:'Geel',   streets:[26,28,29]  },
-  green:  { hex:'#2E8B57', name:'Groen',  streets:[31,33,34]  },
-  dblue:  { hex:'#3333CC', name:'Donkerblauw', streets:[37,39]},
+  brown:  { hex:'#8B4513', name:'Bruin',        streets:[1,3]     },
+  lblue:  { hex:'#00BFFF', name:'Lichtblauw',   streets:[6,8,9]   },
+  pink:   { hex:'#FF69B4', name:'Roze',          streets:[11,13,14]},
+  orange: { hex:'#FF8C00', name:'Oranje',        streets:[16,18,19]},
+  red:    { hex:'#CC2200', name:'Rood',          streets:[21,23,24]},
+  yellow: { hex:'#FFD700', name:'Geel',          streets:[26,28,29]},
+  green:  { hex:'#2E8B57', name:'Groen',         streets:[31,33,35]},
+  dblue:  { hex:'#3333CC', name:'Donkerblauw',   streets:[37,39]   },
 };
 
 const SQ_COLOR = {};
 Object.values(STREET_COLORS).forEach(({hex,streets}) => streets.forEach(s => SQ_COLOR[s] = hex));
 
 const MONO_BOARD_CLIENT = [
-  // sq0-9: bottom row RIGHT→LEFT (sq0=START bottom-right)
-  {n:'START',             t:'go',       emoji:'🏁', bg:'#0d2b0d'},
-  {n:'Crack Steeg',       t:'prop',     emoji:'🏚️', bg:'#1a0a00'},
-  {n:'Gemeentekas',       t:'chest',    emoji:'📬', bg:'#001020'},
-  {n:'Jordaan Slop',      t:'prop',     emoji:'🏠', bg:'#1a0a00'},
-  {n:'Belasting',         t:'tax',      emoji:'⚡', bg:'#1f0000'},
-  {n:'Schiphol',          t:'rr',       emoji:'✈️', bg:'#0a0a20'},
-  {n:'AH Straat',         t:'prop',     emoji:'🛒', bg:'#001828'},
-  {n:'Kans',              t:'chance',   emoji:'🎲', bg:'#1a1500'},
-  {n:'Wallen Wijk',       t:'prop',     emoji:'🪟', bg:'#001828'},
-  {n:'Coffeeshop',        t:'prop',     emoji:'☕', bg:'#001828'},
-  // sq10: bottom-left corner
-  {n:'Gevangenis',        t:'jail',     emoji:'🔒', bg:'#0a0a1f'},
-  // sq11-19: left col BOTTOM→TOP
-  {n:'Kattenburgh',       t:'prop',     emoji:'🐱', bg:'#1f0018'},
-  {n:'Waterleiding',      t:'util',     emoji:'💧', bg:'#001f1f'},
-  {n:'Kinkerstraat',      t:'prop',     emoji:'🛵', bg:'#1f0018'},
-  {n:'De Pijp',           t:'prop',     emoji:'🥐', bg:'#1f0018'},
-  {n:'Centraal',          t:'rr',       emoji:'🚂', bg:'#0a0a20'},
-  {n:'NDSM Loods',        t:'prop',     emoji:'🏭', bg:'#1a1000'},
-  {n:'Gemeentekas',       t:'chest',    emoji:'📬', bg:'#001020'},
-  {n:'Zuidas Tower',      t:'prop',     emoji:'🏢', bg:'#1a1000'},
-  {n:'Vondelpark',        t:'prop',     emoji:'🌳', bg:'#1a1000'},
-  // sq20: top-left corner
-  {n:'Gratis P.',         t:'free',     emoji:'🚗', bg:'#002000'},
-  // sq21-29: top row LEFT→RIGHT
-  {n:'Herengracht',       t:'prop',     emoji:'🏰', bg:'#1f0000'},
-  {n:'Kans',              t:'chance',   emoji:'🎲', bg:'#1a1500'},
-  {n:'Keizersgracht',     t:'prop',     emoji:'🏯', bg:'#1f0000'},
-  {n:'Prinsengracht',     t:'prop',     emoji:'🏛️', bg:'#1f0000'},
-  {n:'Zuid-As Metro',     t:'rr',       emoji:'🚇', bg:'#0a0a20'},
-  {n:'Museumplein',       t:'prop',     emoji:'🎨', bg:'#1a1a00'},
-  {n:'Luxebelasting',     t:'tax',      emoji:'💸', bg:'#1f0000'},
-  {n:'Oud-Zuid',          t:'prop',     emoji:'🏡', bg:'#1a1a00'},
-  // sq30: top-right corner
-  {n:'Naar Bak',          t:'gotojail', emoji:'🚔', bg:'#1f0000'},
-  // sq31-39: right col TOP→BOTTOM
-  {n:'Apollolaan',        t:'prop',     emoji:'🌴', bg:'#002000'},
-  {n:'Gemeentekas',       t:'chest',    emoji:'📬', bg:'#001020'},
-  {n:'Buitenveldert',     t:'prop',     emoji:'🏘️', bg:'#002000'},
-  {n:'Kans',              t:'chance',   emoji:'🎲', bg:'#1a1500'},
-  {n:'Amstelveen',        t:'prop',     emoji:'🏗️', bg:'#002000'},
-  {n:'Snelweg A10',       t:'rr',       emoji:'🚌', bg:'#0a0a20'},
-  {n:'Kans',              t:'chance',   emoji:'🎲', bg:'#1a1500'},
-  {n:'Leidseplein',       t:'prop',     emoji:'🌟', bg:'#00001f'},
-  {n:'Gemeentebel.',      t:'tax',      emoji:'🏛️', bg:'#1f0000'},
-  {n:'Rembrandtplein',    t:'prop',     emoji:'👑', bg:'#00001f'},
-];
+  // sq0  START           ── bottom-left corner
+  {n:'START',          t:'go',       emoji:'🏁', bg:'#0a2a0a'},
+  // sq1-9  bottom row left→right
+  {n:'Crack Steeg',    t:'prop',     emoji:'🏚️', bg:'#221005'},   // 🟤
+  {n:'Gemeentekas',    t:'chest',    emoji:'📬', bg:'#001525'},
+  {n:'Jordaan Slop',   t:'prop',     emoji:'🏠', bg:'#221005'},   // 🟤
+  {n:'Belasting',      t:'tax',      emoji:'⚡', bg:'#220000'},
+  {n:'Schiphol',       t:'rr',       emoji:'✈️', bg:'#0a0a28'},
+  {n:'AH Straat',      t:'prop',     emoji:'🛒', bg:'#002035'},   // 🔵
+  {n:'Kans',           t:'chance',   emoji:'🎲', bg:'#181500'},
+  {n:'Wallen Wijk',    t:'prop',     emoji:'🪟', bg:'#002035'},   // 🔵
+  {n:'Coffeeshop',     t:'prop',     emoji:'☕', bg:'#002035'},   // 🔵
+  // sq10 JAIL           ── bottom-right corner
+  {n:'Gevangenis',     t:'jail',     emoji:'🔒', bg:'#0a0a22'},
+  // sq11-19  right col bottom→top
+  {n:'Kattenburgh',    t:'prop',     emoji:'🐱', bg:'#28001a'},   // 🩷
+  {n:'Waterleiding',   t:'util',     emoji:'💧', bg:'#002020'},
+  {n:'Kinkerstraat',   t:'prop',     emoji:'🛵', bg:'#28001a'},   // 🩷
+  {n:'De Pijp',        t:'prop',     emoji:'🥐', bg:'#28001a'},   // 🩷
+  {n:'Centraal',       t:'rr',       emoji:'🚂', bg:'#0a0a28'},
+  {n:'NDSM Loods',     t:'prop',     emoji:'🏭', bg:'#221200'},   // 🟠
+  {n:'Gemeentekas',    t:'chest',    emoji:'📬', bg:'#001525'},
+  {n:'Zuidas Tower',   t:'prop',     emoji:'🏢', bg:'#221200'},   // 🟠
+  {n:'Vondelpark',     t:'prop',     emoji:'🌳', bg:'#221200'},   // 🟠
+  // sq20 FREE PARKING   ── top-right corner
+  {n:'Gratis P.',      t:'free',     emoji:'🚗', bg:'#002800'},
+  // sq21-29  top row right→left
+  {n:'Herengracht',    t:'prop',     emoji:'🏰', bg:'#280000'},   // 🔴
+  {n:'Kans',           t:'chance',   emoji:'🎲', bg:'#181500'},
+  {n:'Keizersgracht',  t:'prop',     emoji:'🏯', bg:'#280000'},   // 🔴
+  {n:'Prinsengracht',  t:'prop',     emoji:'🏛️', bg:'#280000'},   // 🔴
+  {n:'Zuid-As Metro',  t:'rr',       emoji:'🚇', bg:'#0a0a28'},
+  {n:'Museumplein',    t:'prop',     emoji:'🎨', bg:'#222200'},   // 🟡
+  {n:'Luxebelasting',  t:'tax',      emoji:'💸', bg:'#220000'},
+  {n:'Oud-Zuid',       t:'prop',     emoji:'🏡', bg:'#222200'},   // 🟡
+  {n:'Vondelweg',      t:'prop',     emoji:'🌿', bg:'#222200'},   // 🟡
+  // sq30 GA NAAR BAK    ── top-left corner
+  {n:'Naar Bak',       t:'gotojail', emoji:'🚔', bg:'#220000'},
+  // sq31-39  left col top→bottom
+  {n:'Apollolaan',     t:'prop',     emoji:'🌴', bg:'#003200'},   // 🟢
+  {n:'Gemeentekas',    t:'chest',    emoji:'📬', bg:'#001525'},
+  {n:'Buitenveldert',  t:'prop',     emoji:'🏘️', bg:'#003200'},   // 🟢
+  {n:'Kans',           t:'chance',   emoji:'🎲', bg:'#181500'},
+  {n:'Amstelveen',     t:'prop',     emoji:'🏗️', bg:'#003200'},   // 🟢
+  {n:'Snelweg A10',    t:'rr',       emoji:'🚌', bg:'#0a0a28'},
+  {n:'Leidseplein',    t:'prop',     emoji:'🌟', bg:'#00001f'},   // 🔷
+  {n:'Gemeentebel.',   t:'tax',      emoji:'🏛️', bg:'#220000'},
+  {n:'Rembrandtplein', t:'prop',     emoji:'👑', bg:'#00001f'},   // 🔷
+]];
 
 const LEVEL_NAMES  = ['Leeg','Kraakpand','Rijtjeshuis','Appartement','Villa','Mansion'];
 const LEVEL_EMOJI  = ['🏚️','🏠','🏡','🏢','🏰','👑'];
@@ -1316,21 +1323,36 @@ const Mono = {
       if (movers.length > 0) {
         monoPendingState = state;
         monoAnimating = true;
-        // Render without popup first
         const noPopup = {...state, popup: null, phase: 'animating'};
-        Mono.renderFull(area, noPopup);
-        let pending = movers.length;
-        movers.forEach(pid => {
-          Mono.animateSteps(pid, monoLastState.pos[pid], state.pos[pid], () => {
-            pending--;
-            if (pending === 0) {
-              monoAnimating = false;
-              monoLastState = state;
-              Mono.render(monoPendingState);
-              monoPendingState = null;
-            }
+        // 1. Render board (with dice slots showing "?"), 2. Animate dice, 3. Walk
+        const hasFreshDice = state.dice && (!monoLastState.dice ||
+          monoLastState.dice[0] !== state.dice[0] || monoLastState.dice[1] !== state.dice[1]);
+
+        const doWalk = () => {
+          Mono.renderFull(area, noPopup); // show real dice value
+          let pending = movers.length;
+          movers.forEach(pid => {
+            const fromPos = monoLastState.pos[pid];
+            const toPos = state.pos[pid];
+            Mono.animateSteps(pid, fromPos, toPos, () => {
+              pending--;
+              if (pending === 0) {
+                monoAnimating = false;
+                monoLastState = state;
+                Mono.render(monoPendingState);
+                monoPendingState = null;
+              }
+            });
           });
-        });
+        };
+
+        if (hasFreshDice) {
+          // Show rolling dice placeholder
+          Mono.renderFull(area, {...noPopup, dice: [-1,-1]}); // -1 triggers rolling display
+          setTimeout(() => Mono.animateDiceInPlace(state.dice, doWalk), 50);
+        } else {
+          doWalk();
+        }
         return;
       }
     }
@@ -1342,7 +1364,7 @@ const Mono = {
     const steps = to >= from ? to - from : (40 - from + to);
     let cur = from;
     let step = 0;
-    const delay = Math.max(120, Math.min(220, 1600 / steps));
+    const delay = Math.max(180, Math.min(300, 2200 / steps)); // slightly slower for better visibility
     const walk = () => {
       cur = (cur + 1) % 40;
       step++;
@@ -1360,6 +1382,40 @@ const Mono = {
       }
     };
     setTimeout(walk, 80);
+  },
+
+  animateDiceInPlace(finalDice, onDone) {
+    const d1 = document.querySelector('.mono-die-1');
+    const d2 = document.querySelector('.mono-die-2');
+    if (!d1 || !d2) { onDone(); return; }
+    const faces = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+    let count = 0;
+    const totalRolls = 12;
+    d1.classList.remove('die-rolling');
+    d2.classList.remove('die-rolling');
+    const roll = () => {
+      count++;
+      d1.textContent = faces[Math.floor(Math.random()*6)];
+      d2.textContent = faces[Math.floor(Math.random()*6)];
+      d1.classList.add('die-spin');
+      d2.classList.add('die-spin');
+      setTimeout(() => { d1.classList.remove('die-spin'); d2.classList.remove('die-spin'); }, 60);
+      if (count < totalRolls) {
+        const delay = 60 + count * 10; // gets slightly slower
+        setTimeout(roll, delay);
+      } else {
+        // Land!
+        d1.textContent = faces[finalDice[0]-1];
+        d2.textContent = faces[finalDice[1]-1];
+        d1.classList.add('die-land');
+        d2.classList.add('die-land');
+        // Show sum
+        const sumEl = document.querySelector('.mono-dsum');
+        if (sumEl) { sumEl.textContent = '= ' + (finalDice[0]+finalDice[1]); sumEl.style.color='#ffd93d'; }
+        setTimeout(onDone, 500); // pause to see the result before walking
+      }
+    };
+    roll();
   },
 
   moveToken(pid, sqIdx) {
@@ -1397,11 +1453,15 @@ const Mono = {
     area.innerHTML = `
       <div class="mono-topbar">
         <div class="mono-tb-left">
-          ${state.dice
-            ? `<span class="mono-die">${Mono.dieFace(state.dice[0])}</span>
-               <span class="mono-die">${Mono.dieFace(state.dice[1])}</span>
+          ${state.dice && state.dice[0] !== -1
+            ? `<span class="mono-die mono-die-1">${Mono.dieFace(state.dice[0])}</span>
+               <span class="mono-die mono-die-2">${Mono.dieFace(state.dice[1])}</span>
                <span class="mono-dsum">= ${state.dice[0]+state.dice[1]}</span>`
-            : '<span class="mono-noroll">🎲 niet gegooid</span>'}
+            : state.dice && state.dice[0] === -1
+              ? `<span class="mono-die mono-die-1 die-rolling">🎲</span>
+                 <span class="mono-die mono-die-2 die-rolling">🎲</span>
+                 <span class="mono-dsum" style="color:#888">...</span>`
+              : '<span class="mono-noroll">🎲 niet gegooid</span>'}
         </div>
         <div class="mono-tb-mid">
           ${state.current==='cop'
@@ -1449,21 +1509,23 @@ const Mono = {
   renderBoardHTML(state) {
     // 11x11 grid, 40 border squares clockwise from sq0(bottom-right)
     // Mapping: sq → {r, c} where r=0=top, r=10=bottom, c=0=left, c=10=right
+    // START = bottom-LEFT (r10,c0), clockwise:
+    // Bottom row L→R, right col B→T, top row R→L, left col T→B
     const pos = {};
-    // Bottom row right→left: sq0(r10,c10) ... sq9(r10,c1)
-    for(let i=0;i<=9;i++) pos[i] = {r:10, c:10-i};
-    // Bottom-left corner: sq10 = r10,c0
-    pos[10] = {r:10, c:0};
-    // Left col bottom→top: sq11(r9,c0) ... sq19(r1,c0)
-    for(let i=0;i<=8;i++) pos[11+i] = {r:9-i, c:0};
-    // Top-left corner: sq20 = r0,c0
-    pos[20] = {r:0, c:0};
-    // Top row left→right: sq21(r0,c1) ... sq29(r0,c9)
-    for(let i=0;i<=8;i++) pos[21+i] = {r:0, c:1+i};
-    // Top-right corner: sq30 = r0,c10
-    pos[30] = {r:0, c:10};
-    // Right col top→bottom: sq31(r1,c10) ... sq39(r9,c10)
-    for(let i=0;i<=8;i++) pos[31+i] = {r:1+i, c:10};
+    // Bottom row LEFT→RIGHT: sq0(r10,c0) ... sq9(r10,c9)
+    for(let i=0;i<=9;i++) pos[i] = {r:10, c:i};
+    // Bottom-right corner: sq10 = r10,c10 (JAIL)
+    pos[10] = {r:10, c:10};
+    // Right col BOTTOM→TOP: sq11(r9,c10) ... sq19(r1,c10)
+    for(let i=0;i<=8;i++) pos[11+i] = {r:9-i, c:10};
+    // Top-right corner: sq20 = r0,c10 (FREE PARKING)
+    pos[20] = {r:0, c:10};
+    // Top row RIGHT→LEFT: sq21(r0,c9) ... sq29(r0,c1)
+    for(let i=0;i<=8;i++) pos[21+i] = {r:0, c:9-i};
+    // Top-left corner: sq30 = r0,c0 (GO TO JAIL)
+    pos[30] = {r:0, c:0};
+    // Left col TOP→BOTTOM: sq31(r1,c0) ... sq39(r9,c0)
+    for(let i=0;i<=8;i++) pos[31+i] = {r:1+i, c:0};
 
     // Build grid lookup
     const grid = {};

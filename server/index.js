@@ -656,7 +656,7 @@ function monoCopDone(room) {
   gs.currentIdx = ni;
   gs.current = gs.realPlayers[ni];
   const nextName = room.clients.find(c=>c.id===gs.current)?.name||'?';
-  gs.log.unshift(`${nextName} is aan de beurt.`);
+  gs.log.unshift(`▶️ ${nextName} is aan de beurt.`);
   monoBroadcast(room);
 }
 
@@ -679,8 +679,8 @@ function monoEndTurn(room) {
   let guard = 0;
   while (gs.bankrupt[gs.realPlayers[ni]] && guard++ < gs.realPlayers.length) ni = (ni+1) % gs.realPlayers.length;
 
-  // If we wrapped around (new round), cop goes first
-  if (ni <= curRealIdx && curRealIdx !== -1) {
+  // If we wrapped around (ni went back to 0 from a higher index), cop goes first
+  if (ni < curRealIdx || (ni === 0 && curRealIdx === gs.realPlayers.length - 1)) {
     gs.log.unshift('👮 Nieuwe ronde! Agent rijdt zijn ronde...');
     gs.current = 'cop';
     gs.currentIdx = gs.realPlayers.length; // cop index
@@ -697,7 +697,7 @@ function monoEndTurn(room) {
   gs.current = gs.realPlayers[ni];
   gs.currentIdx = ni;
   const nextName = room.clients.find(c=>c.id===gs.current)?.name||'?';
-  gs.log.unshift(`${nextName} is aan de beurt.`);
+  gs.log.unshift(`▶️ ${nextName} is aan de beurt.`);
   monoBroadcast(room);
 }
 
@@ -737,11 +737,12 @@ function handleMonopoly(room, clientId, ws, msg) {
 
     if (newPos < oldPos && !gs.jail[clientId]) {
       gs.money[clientId] = (gs.money[clientId]||0) + 2000;
-      gs.log.unshift(`${name} passeert START! +€400 💰`);
+      gs.log.unshift(`💰 ${name} passeert START en pakt €2.000!`);
     }
 
     const sq = MONO_BOARD[newPos];
-    gs.log.unshift(`${name} gooit ${d1}+${d2} → ${sq.emoji} ${sq.n}`);
+    const diceWords = ['','één','twee','drie','vier','vijf','zes'];
+    gs.log.unshift(`🎲 ${name} gooit ${d1}+${d2}=${d1+d2} en landt op ${sq.emoji} ${sq.n}`);
 
     // --- SQUARE EFFECTS ---
     if (sq.t==='gotojail') {
@@ -794,7 +795,7 @@ function handleMonopoly(room, clientId, ws, msg) {
     if (!gs.props[sqIdx] && (gs.money[clientId]||0) >= (sq.p||9999)) {
       gs.money[clientId] -= sq.p;
       gs.props[sqIdx] = {ownerId:clientId, level:0};
-      gs.log.unshift(`${name} koopt ${sq.emoji} ${sq.n} voor €${sq.p}!`);
+      gs.log.unshift(`🏠 ${name} koopt ${sq.emoji} ${sq.n} voor €${sq.p.toLocaleString('nl')}!`);
     }
     gs.popup=null; gs.phase='playing';
     monoBroadcast(room); return;

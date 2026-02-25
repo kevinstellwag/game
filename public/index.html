@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PartyGames 🎮</title>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Nunito',sans-serif;overflow-x:hidden}
+:root{
+  --bg:#0d0d1a;--bg2:#16162a;--card:#1e1e35;--card2:#262642;
+  --accent:#ff6b6b;--accent2:#ffd93d;--accent3:#6bcb77;--accent4:#4d96ff;
+  --text:#f0f0ff;--text2:#8888aa;--border:rgba(255,255,255,0.08);
+  --shadow:0 4px 24px rgba(0,0,0,0.5);--r:14px;
+}
+body{background:var(--bg);color:var(--text)}
+.screen{display:none;min-height:100vh}
+.screen.active{display:flex;flex-direction:column}
+input,textarea,button{font-family:'Nunito',sans-serif}
+.hidden{display:none!important}
+
+/* ===== HOME ===== */
+#screen-home{position:relative;align-items:center;justify-content:center}
+.home-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 20% 50%,#2d1b69 0%,transparent 55%),radial-gradient(ellipse at 80% 20%,#1a3a5c 0%,transparent 55%),radial-gradient(ellipse at 60% 80%,#3d1515 0%,transparent 45%),var(--bg)}
+.home-bg::after{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 2px 2px,rgba(255,255,255,0.03) 1px,transparent 0);background-size:40px 40px}
+.home-wrap{position:relative;z-index:1;width:100%;max-width:460px;padding:2rem 1.25rem;text-align:center}
+.logo-icon{font-size:5rem;animation:float 3s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.logo-title{font-family:'Bangers',cursive;font-size:4rem;letter-spacing:4px;color:var(--text);text-shadow:0 0 40px rgba(255,107,107,0.5);line-height:1}
+.logo-title span{color:var(--accent2)}
+.logo-sub{color:var(--text2);font-style:italic;margin:0.4rem 0 2rem}
+.home-btns{display:flex;gap:1rem;margin-bottom:1.25rem}
+.btn-home{flex:1;display:flex;flex-direction:column;align-items:center;gap:0.4rem;padding:1.25rem 1rem;border-radius:var(--r);border:none;cursor:pointer;font-weight:900;font-size:1rem;color:white;transition:all 0.2s}
+.btn-home span:first-child{font-size:1.6rem}
+.btn-create{background:linear-gradient(135deg,#ff6b6b,#ee0979);box-shadow:0 6px 24px rgba(255,107,107,0.4)}
+.btn-create:hover{transform:translateY(-3px);box-shadow:0 10px 32px rgba(255,107,107,0.6)}
+.btn-join{background:linear-gradient(135deg,#4d96ff,#2356d4);box-shadow:0 6px 24px rgba(77,150,255,0.4)}
+.btn-join:hover{transform:translateY(-3px);box-shadow:0 10px 32px rgba(77,150,255,0.6)}
+
+/* ===== FORMS ===== */
+.form-box{background:var(--card);border-radius:var(--r);padding:1.25rem;text-align:left;border:1px solid var(--border);box-shadow:var(--shadow);animation:slideUp 0.25s ease}
+@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+.form-box h2{font-family:'Bangers',cursive;font-size:1.7rem;letter-spacing:2px;color:var(--accent2);margin-bottom:0.75rem}
+.form-box input,.form-box textarea{width:100%;padding:0.7rem 0.9rem;background:var(--bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:0.95rem;margin-bottom:0.6rem;transition:border-color 0.2s}
+.form-box input:focus,.form-box textarea:focus{outline:none;border-color:var(--accent4)}
+.form-box label{display:block;color:var(--text2);font-size:0.75rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:0.25rem;margin-top:0.25rem}
+.game-picker{display:flex;flex-direction:column;gap:0.4rem;margin-bottom:0.75rem}
+.gpick{padding:0.65rem 0.9rem;background:var(--bg2);border-radius:9px;cursor:pointer;border:2px solid var(--border);font-weight:700;transition:all 0.15s}
+.gpick:hover{border-color:var(--accent4)}
+.gpick.active{border-color:var(--accent2);background:rgba(255,217,61,0.1)}
+.btn-act{width:100%;padding:0.85rem;background:linear-gradient(135deg,var(--accent),#ee0979);border:none;border-radius:10px;color:white;font-weight:900;font-size:1.05rem;cursor:pointer;transition:all 0.2s;margin-bottom:0.5rem}
+.btn-act:hover{transform:translateY(-2px);filter:brightness(1.1)}
+.btn-act:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.btn-sm{padding:0.5rem 0.9rem;background:var(--card2);border:2px solid var(--border);border-radius:8px;color:var(--text);font-weight:700;cursor:pointer;transition:all 0.15s;margin-bottom:0.5rem}
+.btn-sm:hover{border-color:var(--accent4)}
+.btn-back{width:100%;padding:0.6rem;background:transparent;border:2px solid var(--border);border-radius:10px;color:var(--text2);font-weight:700;cursor:pointer;transition:all 0.2s}
+.btn-back:hover{border-color:var(--text2);color:var(--text)}
+.btn-copy{padding:0.3rem 0.6rem;background:var(--card2);border:1px solid var(--border);border-radius:7px;color:var(--text);cursor:pointer;font-size:0.8rem;transition:all 0.15s}
+.btn-copy:hover{background:var(--accent4)}
+
+/* ===== LOBBY ===== */
+#screen-lobby{min-height:100vh}
+.lobby-header{background:var(--card);border-bottom:1px solid var(--border);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem}
+.lobby-code{font-size:0.9rem;color:var(--text2);display:flex;align-items:center;gap:0.5rem}
+.lobby-code strong{font-family:'Bangers',cursive;font-size:1.5rem;letter-spacing:3px;color:var(--accent2)}
+.lobby-game-name{font-family:'Bangers',cursive;font-size:1.3rem;letter-spacing:2px;color:var(--text)}
+.lobby-body{display:flex;flex-direction:column;gap:1rem;padding:1rem;max-width:600px;margin:0 auto;width:100%}
+.lobby-players-box h3,.lobby-host-controls h3{font-family:'Bangers',cursive;font-size:1.3rem;letter-spacing:2px;color:var(--accent2);margin-bottom:0.6rem}
+.lobby-player-row{display:flex;align-items:center;gap:0.75rem;padding:0.6rem 0.9rem;background:var(--card);border-radius:10px;border:1px solid var(--border);margin-bottom:0.4rem}
+.lp-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:0.95rem;flex-shrink:0}
+.lp-name{font-weight:800;flex:1}
+.lp-badge{font-size:0.75rem;color:var(--text2)}
+.lobby-host-controls{display:flex;flex-direction:column}
+.lobby-host-controls input[type=number]{padding:0.6rem 0.8rem;background:var(--bg);border:2px solid var(--border);border-radius:9px;color:var(--text);font-size:0.95rem;margin-bottom:0.5rem;width:100%}
+.lobby-host-controls input[type=number]:focus{outline:none;border-color:var(--accent4)}
+.lobby-host-controls textarea{width:100%;padding:0.6rem 0.8rem;background:var(--bg);border:2px solid var(--border);border-radius:9px;color:var(--text);font-size:0.9rem;resize:vertical;margin-bottom:0.4rem}
+.lobby-host-controls textarea:focus{outline:none;border-color:var(--accent4)}
+.lobby-host-controls label{color:var(--text2);font-size:0.75rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:0.5rem 0 0.25rem}
+.wait-msg{text-align:center;color:var(--text2);padding:1.5rem;font-style:italic;background:var(--card);border-radius:var(--r);border:1px solid var(--border)}
+
+/* ===== GAME SCREEN ===== */
+#screen-game{flex-direction:column;min-height:100vh}
+.game-header{background:var(--card);border-bottom:1px solid var(--border);padding:0.6rem 1rem;display:flex;align-items:center;gap:0.75rem;position:sticky;top:0;z-index:100}
+.btn-back-sm{padding:0.35rem 0.8rem;background:transparent;border:2px solid var(--border);border-radius:8px;color:var(--text2);cursor:pointer;font-weight:700;font-size:0.85rem;transition:all 0.15s;white-space:nowrap}
+.btn-back-sm:hover{border-color:var(--text2);color:var(--text)}
+.game-code-pill{font-family:'Bangers',cursive;font-size:1.3rem;letter-spacing:3px;color:var(--accent2);flex:1;text-align:center}
+.chat-toggle-btn{padding:0.35rem 0.8rem;background:var(--accent4);border:none;border-radius:8px;color:white;cursor:pointer;font-weight:800;font-size:0.85rem;position:relative;transition:all 0.15s}
+.chat-toggle-btn:hover{filter:brightness(1.15)}
+.chat-badge-dot{position:absolute;top:-3px;right:-3px;width:10px;height:10px;background:var(--accent);border-radius:50%;display:none}
+.chat-badge-dot.show{display:block}
+.game-layout{display:flex;flex:1;overflow:hidden;position:relative}
+.game-area{flex:1;overflow-y:auto;padding:1rem}
+.chat-panel{width:280px;display:flex;flex-direction:column;background:var(--card);border-left:1px solid var(--border)}
+.chat-panel.hidden{display:none}
+@media(max-width:600px){
+  .chat-panel{position:fixed;right:0;top:0;bottom:0;z-index:200;width:85%;max-width:320px}
+}
+.chat-header{display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;border-bottom:1px solid var(--border);font-weight:800}
+.chat-close{background:none;border:none;color:var(--text2);cursor:pointer;font-size:1rem;padding:0.2rem 0.4rem}
+.chat-close:hover{color:var(--text)}
+.chat-messages{flex:1;overflow-y:auto;padding:0.75rem;display:flex;flex-direction:column;gap:0.4rem}
+.chat-messages::-webkit-scrollbar{width:3px}
+.chat-messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.chat-msg{padding:0.45rem 0.7rem;border-radius:9px;background:var(--card2);border:1px solid var(--border);max-width:100%;word-break:break-word;animation:msgIn 0.2s ease}
+@keyframes msgIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.chat-msg.mine{background:rgba(77,150,255,0.15);border-color:rgba(77,150,255,0.3)}
+.chat-msg.sys{background:transparent;border:none;text-align:center;color:var(--text2);font-style:italic;font-size:0.8rem}
+.chat-name{font-size:0.7rem;font-weight:900;color:var(--accent4);margin-bottom:0.1rem}
+.chat-msg.mine .chat-name{color:var(--accent2)}
+.chat-text{font-size:0.88rem}
+.chat-input-row{display:flex;gap:0.4rem;padding:0.6rem}
+.chat-input-row input{flex:1;padding:0.55rem 0.75rem;background:var(--bg);border:2px solid var(--border);border-radius:9px;color:var(--text);font-size:0.9rem}
+.chat-input-row input:focus{outline:none;border-color:var(--accent4)}
+.chat-input-row button{padding:0.55rem 0.85rem;background:var(--accent4);border:none;border-radius:9px;color:white;font-weight:800;cursor:pointer;transition:all 0.15s}
+.chat-input-row button:hover{filter:brightness(1.15)}
+
+/* ===== TOAST ===== */
+.toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(80px);background:var(--card2);border:1px solid var(--border);padding:0.65rem 1.4rem;border-radius:50px;color:var(--text);font-weight:700;font-size:0.9rem;box-shadow:var(--shadow);z-index:9999;transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1);white-space:nowrap;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ===== GAME SHARED ===== */
+.game-banner{border-radius:var(--r);padding:1.25rem;text-align:center;border:1px solid rgba(255,255,255,0.1);margin-bottom:1rem}
+.game-banner-title{font-family:'Bangers',cursive;font-size:2rem;letter-spacing:3px}
+.game-banner-sub{color:var(--text2);font-style:italic;margin-top:0.3rem}
+.info-box{background:var(--card);border-radius:var(--r);padding:1rem;border:1px solid var(--border);margin-bottom:0.75rem}
+.info-box h3{font-family:'Bangers',cursive;font-size:1.2rem;letter-spacing:2px;color:var(--accent2);margin-bottom:0.4rem}
+.info-box p{color:var(--text2);font-size:0.9rem;line-height:1.5}
+.btn-start-game{width:100%;padding:1rem;background:linear-gradient(135deg,#ff6b6b,#ee0979);border:none;border-radius:var(--r);color:white;font-family:'Bangers',cursive;font-size:1.4rem;letter-spacing:2px;cursor:pointer;transition:all 0.2s;margin-top:0.5rem}
+.btn-start-game:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(255,107,107,0.4)}
+.warn{color:var(--accent2);text-align:center;font-size:0.85rem;margin-top:0.4rem}
+.waiting-txt{text-align:center;color:var(--text2);padding:1.5rem;font-style:italic;background:var(--card);border-radius:var(--r);border:1px solid var(--border)}
+.scores-row{display:flex;align-items:center;gap:0.75rem;padding:0.55rem 0.75rem;background:var(--card);border-radius:9px;border:1px solid var(--border);margin-bottom:0.35rem}
+.scores-row.winner{border-color:var(--accent2);background:rgba(255,217,61,0.07)}
+.sc-name{width:90px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
+.sc-bar-wrap{flex:1;height:9px;background:var(--bg);border-radius:5px;overflow:hidden}
+.sc-bar{height:100%;background:linear-gradient(90deg,var(--accent4),var(--accent));border-radius:5px;transition:width 0.5s ease}
+.sc-pts{width:55px;text-align:right;font-family:'Bangers',cursive;font-size:1.1rem;color:var(--accent2);flex-shrink:0}
+
+/* ===== CAH ===== */
+.cah-topbar{display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;background:var(--card);border-radius:9px;padding:0.55rem 0.9rem;border:1px solid var(--border);font-size:0.82rem;margin-bottom:0.75rem}
+.cah-round{font-family:'Bangers',cursive;font-size:1.2rem;color:var(--accent2)}
+.cah-czar{color:var(--text2)}
+.sc-chips{display:flex;gap:0.3rem;flex-wrap:wrap;margin-left:auto}
+.sc-chip{background:var(--card2);border-radius:20px;padding:0.15rem 0.5rem;font-size:0.72rem;font-weight:700}
+.black-card{background:#000;color:white;border-radius:var(--r);padding:1.4rem;min-height:110px;position:relative;font-weight:700;border:2px solid rgba(255,255,255,0.1);box-shadow:0 6px 24px rgba(0,0,0,0.6);margin-bottom:0.75rem;display:flex;flex-direction:column;justify-content:center}
+.black-card-corner{position:absolute;top:10px;left:12px;font-size:0.65rem;opacity:0.4;font-family:'Bangers',cursive;letter-spacing:1px}
+.black-card-text{font-size:1.1rem;line-height:1.5;padding-top:0.5rem}
+.black-card-pick{position:absolute;bottom:10px;right:12px;font-size:0.65rem;opacity:0.4}
+.hand-label{font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:1px;font-size:0.75rem;margin-bottom:0.6rem}
+.white-cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:0.6rem}
+.wcard{background:white;color:#111;border-radius:10px;padding:0.9rem;min-height:90px;cursor:pointer;position:relative;font-weight:700;transition:all 0.18s;border:3px solid transparent;box-shadow:0 3px 10px rgba(0,0,0,0.3)}
+.wcard:hover{transform:translateY(-4px) rotate(-1deg);box-shadow:0 8px 20px rgba(0,0,0,0.4);border-color:#333}
+.wcard.selected{border-color:#4d96ff;transform:translateY(-6px) scale(1.04)}
+.wcard-text{font-size:0.88rem;line-height:1.35}
+.wcard-brand{position:absolute;bottom:7px;right:8px;font-size:0.75rem;opacity:0.25}
+.czar-box,.submitted-box,.judge-box{text-align:center;padding:1.5rem 1rem;background:var(--card);border-radius:var(--r);border:1px solid var(--border)}
+.czar-box h3,.submitted-box h3,.judge-box h3{font-family:'Bangers',cursive;font-size:1.6rem;letter-spacing:2px;color:var(--accent2);margin:0.4rem 0 0.3rem}
+.czar-box p,.submitted-box p{color:var(--text2);font-size:0.9rem}
+.sub-counter{margin-top:0.75rem;font-weight:800;color:var(--accent4)}
+.judge-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:0.6rem;margin-top:0.75rem}
+.judge-card:hover{transform:translateY(-6px) rotate(1deg);box-shadow:0 10px 28px rgba(0,0,0,0.5)}
+.round-winner{text-align:center;padding:1.5rem;background:linear-gradient(135deg,rgba(255,215,0,0.12),rgba(255,107,107,0.12));border-radius:var(--r);border:2px solid rgba(255,215,0,0.25);margin-bottom:0.75rem}
+.round-winner h3{font-family:'Bangers',cursive;font-size:1.8rem;letter-spacing:3px;color:var(--accent2)}
+.round-winner p{color:var(--text2);margin-top:0.3rem;font-style:italic}
+.game-winner{text-align:center;padding:2rem;background:linear-gradient(135deg,rgba(255,215,0,0.2),rgba(255,107,107,0.2));border-radius:var(--r);border:2px solid rgba(255,215,0,0.4);margin-bottom:0.75rem}
+.game-winner h2{font-family:'Bangers',cursive;font-size:2.2rem;letter-spacing:3px;color:var(--accent2)}
+.cah-next-btn{width:100%;padding:0.9rem;background:linear-gradient(135deg,#4d96ff,#2356d4);border:none;border-radius:var(--r);color:white;font-family:'Bangers',cursive;font-size:1.3rem;letter-spacing:2px;cursor:pointer;transition:all 0.2s;margin-top:0.75rem}
+.cah-next-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(77,150,255,0.4)}
+
+/* ===== POKER ===== */
+.poker-info{display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;background:#0a200a;border:1px solid #1a4a1a;border-radius:9px;padding:0.55rem 0.9rem;font-size:0.82rem;margin-bottom:0.75rem}
+.your-turn-pill{background:var(--accent2);color:#111;font-weight:900;padding:0.15rem 0.65rem;border-radius:20px;font-size:0.78rem;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.community-box{background:#0a2a0a;border-radius:var(--r);padding:0.9rem;border:2px solid #1a4a1a;margin-bottom:0.75rem}
+.community-label{font-size:0.7rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#4a8a4a;margin-bottom:0.6rem}
+.cards-row{display:flex;gap:0.4rem;flex-wrap:wrap}
+.pcard{width:48px;height:66px;background:white;border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid #ddd;box-shadow:0 3px 10px rgba(0,0,0,0.4);font-weight:900;gap:1px}
+.pcard.red{color:#cc0000}.pcard.black{color:#111}
+.pcard-back{background:linear-gradient(135deg,#1a1a8a,#111);color:#3a3aaa;font-size:1.4rem;border:2px solid #2a2aaa}
+.pcard-r{font-size:0.85rem;line-height:1}.pcard-s{font-size:1rem;line-height:1}
+.poker-seats{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:0.6rem;margin-bottom:0.75rem}
+.seat{background:var(--card);border:2px solid var(--border);border-radius:var(--r);padding:0.7rem;text-align:center;transition:all 0.2s}
+.seat.active-turn{border-color:var(--accent2);background:rgba(255,217,61,0.07)}
+.seat.folded{opacity:0.35}
+.seat-name{font-weight:800;font-size:0.88rem;margin-bottom:0.2rem}
+.seat-chips{color:var(--accent3);font-size:0.82rem;font-weight:700}
+.seat-bet{color:var(--accent2);font-size:0.72rem;min-height:0.9rem}
+.seat-fold-tag{color:var(--accent);font-weight:900;font-size:0.72rem}
+.my-hole{display:flex;gap:0.25rem;justify-content:center;margin-top:0.4rem}
+.hidden-cards{font-size:1.1rem;letter-spacing:4px;margin-top:0.35rem}
+.poker-actions{display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.5rem}
+.paction{flex:1;min-width:75px;padding:0.7rem 0.4rem;border:none;border-radius:9px;color:white;font-weight:800;font-size:0.88rem;cursor:pointer;transition:all 0.15s}
+.paction:hover{filter:brightness(1.15);transform:translateY(-1px)}
+.pa-fold{background:linear-gradient(135deg,#880000,#cc0000)}
+.pa-check{background:linear-gradient(135deg,#006688,#0099cc)}
+.pa-call{background:linear-gradient(135deg,#006600,#00aa00)}
+.pa-raise{background:linear-gradient(135deg,#884400,#cc6600)}
+.raise-row{display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0.75rem;background:var(--card);border-radius:9px;border:1px solid var(--border)}
+.raise-row input[type=range]{flex:1;accent-color:var(--accent2)}
+.poker-showdown{text-align:center;padding:1.5rem;background:var(--card);border-radius:var(--r);border:2px solid var(--accent2);margin-bottom:0.75rem}
+.poker-showdown h3{font-family:'Bangers',cursive;font-size:2rem;letter-spacing:2px;color:var(--accent2)}
+.chips-list{display:flex;flex-direction:column;gap:0.35rem;margin-bottom:0.75rem}
+.chip-row{display:flex;justify-content:space-between;padding:0.5rem 0.9rem;background:var(--card);border-radius:8px;border:1px solid var(--border)}
+
+/* ===== MONOPOLY ===== */
+.mono-topbar{display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;background:#0d0d2e;border:1px solid #2d2d5a;border-radius:9px;padding:0.55rem 0.9rem;font-size:0.82rem;margin-bottom:0.75rem}
+.mono-board-wrap{overflow-x:auto;margin-bottom:0.75rem}
+.mono-board{display:grid;grid-template-columns:repeat(10,1fr);gap:2px;min-width:300px;background:#000;border-radius:9px;padding:3px}
+.mcell{aspect-ratio:1;border-radius:3px;padding:2px;position:relative;overflow:hidden;min-width:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.05);cursor:default}
+.mcell-name{font-size:0.35rem;color:rgba(255,255,255,0.65);text-align:center;line-height:1.1;pointer-events:none}
+.mcell-owner{width:5px;height:5px;border-radius:50%;position:absolute;bottom:2px;right:2px}
+.mcell-tokens{display:flex;flex-wrap:wrap;gap:0px;position:absolute;top:2px;left:2px}
+.mtoken-sm{font-size:0.6rem;line-height:1}
+.mono-seats{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:0.6rem;margin-bottom:0.75rem}
+.mono-seat{display:flex;gap:0.5rem;align-items:flex-start;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:0.6rem}
+.mono-seat.current{border-color:var(--accent2);background:rgba(255,217,61,0.07)}
+.mono-seat.bankrupt{opacity:0.35;filter:grayscale(1)}
+.m-token-lg{font-size:1.4rem}
+.m-name{font-weight:800;font-size:0.85rem}
+.m-money{font-family:'Bangers',cursive;font-size:1.1rem}
+.m-sub{font-size:0.7rem;color:var(--text2)}
+.mono-sq-info{display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;background:var(--card);border-radius:9px;padding:0.7rem 0.9rem;border:1px solid var(--border);margin-bottom:0.5rem;font-weight:700}
+.sq-badge{padding:0.15rem 0.55rem;border-radius:5px;font-size:0.78rem;font-weight:800}
+.mono-actions{display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem}
+.maction{flex:1;min-width:90px;padding:0.7rem 0.5rem;border:none;border-radius:9px;color:white;font-weight:800;font-size:0.88rem;cursor:pointer;transition:all 0.15s}
+.maction:hover{filter:brightness(1.15);transform:translateY(-1px)}
+.ma-roll{background:linear-gradient(135deg,#4d1a99,#9933ff)}
+.ma-buy{background:linear-gradient(135deg,#006600,#00aa00)}
+.ma-end{background:linear-gradient(135deg,#333,#555)}
+.mono-log{background:var(--card);border-radius:9px;padding:0.7rem;border:1px solid var(--border);max-height:130px;overflow-y:auto}
+.mono-log::-webkit-scrollbar{width:3px}
+.mono-log::-webkit-scrollbar-thumb{background:var(--border)}
+.log-line{font-size:0.78rem;color:var(--text2);padding:0.12rem 0;border-bottom:1px solid var(--border)}
+.log-line:last-child{border:none}
+
+@media(max-width:480px){
+  .home-btns{flex-direction:column}
+  .logo-title{font-size:3rem}
+}
+
+</style>
+</head>
+<body>
+
+<!-- ===== HOME ===== -->
+<div id="screen-home" class="screen active">
+  <div class="home-bg"></div>
+  <div class="home-wrap">
+    <div class="logo-area">
+      <div class="logo-icon">🎮</div>
+      <h1 class="logo-title">PARTY<span>GAMES</span></h1>
+      <p class="logo-sub">Voor slechte mensen met goede vrienden.</p>
+    </div>
+    <div class="home-btns">
+      <button class="btn-home btn-create" onclick="UI.showForm('create')">
+        <span>🚀</span><span>Kamer Aanmaken</span>
+      </button>
+      <button class="btn-home btn-join" onclick="UI.showForm('join')">
+        <span>🔑</span><span>Kamer Joinen</span>
+      </button>
+    </div>
+    <div id="form-create" class="form-box hidden">
+      <h2>Nieuwe Kamer</h2>
+      <input id="in-create-name" type="text" placeholder="Jouw naam" maxlength="20" autocomplete="off">
+      <label>Kies een spel:</label>
+      <div class="game-picker" id="game-picker-create">
+        <div class="gpick active" data-game="cah">🃏 Cards Against Humanity</div>
+        <div class="gpick" data-game="poker">♠️ Poker</div>
+        <div class="gpick" data-game="monopoly">🏦 Monopoly</div>
+      </div>
+      <button class="btn-act" onclick="App.createRoom()">Aanmaken!</button>
+      <button class="btn-back" onclick="UI.hideForm()">← Terug</button>
+    </div>
+    <div id="form-join" class="form-box hidden">
+      <h2>Join een Kamer</h2>
+      <input id="in-join-name" type="text" placeholder="Jouw naam" maxlength="20" autocomplete="off">
+      <input id="in-join-code" type="text" placeholder="Kamer code (bijv. XK7P2Q)" maxlength="6" style="text-transform:uppercase" autocomplete="off">
+      <button class="btn-act" onclick="App.joinRoom()">Joinen!</button>
+      <button class="btn-back" onclick="UI.hideForm()">← Terug</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== LOBBY ===== -->
+<div id="screen-lobby" class="screen">
+  <div class="lobby-header">
+    <div class="lobby-code">
+      Code: <strong id="lob-code">------</strong>
+      <button class="btn-copy" onclick="App.copyCode()">📋</button>
+    </div>
+    <div id="lob-game-name" class="lobby-game-name">🃏 Cards Against Humanity</div>
+  </div>
+  <div class="lobby-body">
+    <div class="lobby-players-box">
+      <h3>Spelers</h3>
+      <div id="lob-players"></div>
+    </div>
+    <div id="lob-host-controls" class="lobby-host-controls hidden">
+      <h3>Host Opties</h3>
+      <label>Punten om te winnen (CAH):</label>
+      <input type="number" id="lob-maxpts" value="7" min="1" max="50" onchange="App.updateSettings()">
+      <label>Spel wisselen:</label>
+      <div class="game-picker" id="game-picker-switch">
+        <div class="gpick" data-game="cah">🃏 Cards Against Humanity</div>
+        <div class="gpick" data-game="poker">♠️ Poker</div>
+        <div class="gpick" data-game="monopoly">🏦 Monopoly</div>
+      </div>
+      <label>Eigen Zwarte Kaart (met ___):</label>
+      <textarea id="cah-custom-black" placeholder="Mijn huisdier doet ___." rows="2"></textarea>
+      <button class="btn-sm" onclick="App.addCard('black')">+ Zwarte Kaart</button>
+      <label>Eigen Witte Kaart (antwoord):</label>
+      <textarea id="cah-custom-white" placeholder="Een heel slechte keuze." rows="2"></textarea>
+      <button class="btn-sm" onclick="App.addCard('white')">+ Witte Kaart</button>
+      <button class="btn-act" id="btn-start-game" onclick="App.startGame()">🚀 Start Spel!</button>
+    </div>
+    <div id="lob-wait-msg" class="wait-msg">Wachten op de host om het spel te starten...</div>
+  </div>
+</div>
+
+<!-- ===== IN GAME ===== -->
+<div id="screen-game" class="screen">
+  <div class="game-header">
+    <button class="btn-back-sm" onclick="UI.backToLobby()">← Lobby</button>
+    <div id="game-room-code" class="game-code-pill"></div>
+    <button class="chat-toggle-btn" id="chat-toggle-btn" onclick="UI.toggleChat()">💬 Chat</button>
+  </div>
+  <div class="game-layout">
+    <div id="game-area" class="game-area"></div>
+    <div id="chat-panel" class="chat-panel hidden">
+      <div class="chat-header">
+        💬 Chat
+        <button onclick="UI.toggleChat()" class="chat-close">✕</button>
+      </div>
+      <div id="chat-messages" class="chat-messages"></div>
+      <div class="chat-input-row">
+        <input id="chat-input" type="text" placeholder="Typ iets..." maxlength="200"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();App.sendChat();}">
+        <button onclick="App.sendChat()">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+// ===== STATE =====
+let WS = null;
+let myId = null;
+let myRoomState = null;
+let selectedGame = 'cah';
+let chatOpen = false;
+let unread = 0;
+let wsReconnectTimer = null;
+
+const COLORS = ['#FF6B6B','#4ECDC4','#FFE66D','#A8E6CF','#FF8B94','#B4F8C8','#FBE7C6','#A0C4FF'];
+
+// ===== WEBSOCKET =====
+function connectWS(onOpen) {
+  if (WS && (WS.readyState === 0 || WS.readyState === 1)) {
+    // Already connecting or connected
+    if (WS.readyState === 1 && onOpen) onOpen();
+    return;
+  }
+
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const url = `${proto}//${location.host}`;
+  console.log('[WS] Connecting to', url);
+  
+  WS = new WebSocket(url);
+
+  WS.onopen = () => {
+    console.log('[WS] Connected!');
+    // Start client-side keepalive ping every 15s
+    if (wsReconnectTimer) clearInterval(wsReconnectTimer);
+    wsReconnectTimer = setInterval(() => {
+      if (WS && WS.readyState === 1) WS.send(JSON.stringify({ type: 'PING' }));
+    }, 15000);
+    if (onOpen) onOpen();
+  };
+
+  WS.onmessage = (e) => {
+    try {
+      handleMsg(JSON.parse(e.data));
+    } catch(err) {
+      console.error('[WS] Parse error:', err);
+    }
+  };
+
+  WS.onclose = (e) => {
+    console.log('[WS] Closed:', e.code, e.reason);
+    if (wsReconnectTimer) clearInterval(wsReconnectTimer);
+    // Only show error if we were actually in a room
+    if (myRoomState) toast('❌ Verbinding verbroken! Ververs de pagina.');
+  };
+
+  WS.onerror = (e) => {
+    console.error('[WS] Error:', e);
+  };
+}
+
+function sendWS(data) {
+  if (!WS || WS.readyState !== 1) {
+    toast('❌ Niet verbonden!');
+    return;
+  }
+  WS.send(JSON.stringify(data));
+}
+
+function handleMsg(msg) {
+  if (msg.type === 'PONG') return; // keepalive response
+
+  if (msg.type === 'ROOM_JOINED') {
+    myId = msg.yourId;
+    myRoomState = msg.roomState;
+    UI.enterLobby();
+    return;
+  }
+  if (msg.type === 'ROOM_UPDATE') {
+    myRoomState = msg.roomState;
+    // If server reset to lobby, go back to lobby screen for everyone
+    if (msg.roomState.phase === 'lobby') {
+      show('screen-lobby');
+    }
+    UI.refreshLobby();
+    return;
+  }
+  if (msg.type === 'SYS') {
+    addChatMsg({ system: true, text: msg.text });
+    return;
+  }
+  if (msg.type === 'CHAT') {
+    addChatMsg(msg.message);
+    return;
+  }
+  if (msg.type === 'CHAT_HISTORY') {
+    msg.messages.forEach(m => addChatMsg(m, false));
+    return;
+  }
+  if (msg.type === 'GAME_STATE') {
+    myRoomState = msg.roomState;
+    UI.enterGame();
+    if (msg.game === 'cah') CAH.render(msg.state);
+    else if (msg.game === 'poker') Poker.render(msg.state);
+    else if (msg.game === 'monopoly') Mono.render(msg.state);
+    return;
+  }
+  if (msg.type === 'TOAST') {
+    toast(msg.text);
+    return;
+  }
+  if (msg.type === 'ERROR') {
+    toast('❌ ' + msg.message);
+    return;
+  }
+}
+
+// ===== APP ACTIONS =====
+const App = {
+  createRoom() {
+    const name = document.getElementById('in-create-name').value.trim();
+    if (!name) { toast('Vul je naam in!'); return; }
+    connectWS(() => sendWS({ type: 'CREATE_ROOM', playerName: name, game: selectedGame }));
+  },
+
+  joinRoom() {
+    const name = document.getElementById('in-join-name').value.trim();
+    const code = document.getElementById('in-join-code').value.trim().toUpperCase();
+    if (!name) { toast('Vul je naam in!'); return; }
+    if (!code) { toast('Vul de kamer code in!'); return; }
+    connectWS(() => sendWS({ type: 'JOIN_ROOM', playerName: name, code }));
+  },
+
+  startGame() {
+    sendWS({ type: 'GAME_ACTION', action: 'START_GAME' });
+  },
+
+  sendChat() {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+    sendWS({ type: 'CHAT', text });
+    input.value = '';
+  },
+
+  copyCode() {
+    const code = myRoomState?.code || '';
+    navigator.clipboard.writeText(code).then(() => toast('📋 Code gekopieerd: ' + code));
+  },
+
+  updateSettings() {
+    const pts = parseInt(document.getElementById('lob-maxpts').value) || 7;
+    sendWS({ type: 'UPDATE_SETTINGS', settings: { maxPoints: pts } });
+  },
+
+  addCard(type) {
+    const el = document.getElementById(type === 'black' ? 'cah-custom-black' : 'cah-custom-white');
+    const card = el.value.trim();
+    if (!card) { toast('Type eerst een kaart!'); return; }
+    if (type === 'black' && !card.includes('___')) { toast('Zwarte kaart moet ___ bevatten!'); return; }
+    sendWS({ type: 'GAME_ACTION', action: 'ADD_CARD', cardType: type, card });
+    el.value = '';
+    toast('✅ Kaart toegevoegd!');
+  },
+
+  switchGame(game) {
+    sendWS({ type: 'SET_GAME', game });
+  },
+};
+
+// ===== UI =====
+const UI = {
+  showForm(type) {
+    document.getElementById('form-create').classList.add('hidden');
+    document.getElementById('form-join').classList.add('hidden');
+    document.getElementById(`form-${type}`).classList.remove('hidden');
+  },
+  hideForm() {
+    document.getElementById('form-create').classList.add('hidden');
+    document.getElementById('form-join').classList.add('hidden');
+  },
+
+  enterLobby() {
+    show('screen-lobby');
+    UI.refreshLobby();
+  },
+
+  refreshLobby() {
+    if (!myRoomState) return;
+    const rs = myRoomState;
+    const amHost = rs.players.find(p => p.id === myId)?.isHost;
+
+    document.getElementById('lob-code').textContent = rs.code;
+    const gameNames = { cah: '🃏 Cards Against Humanity', poker: '♠️ Poker', monopoly: '🏦 Monopoly' };
+    document.getElementById('lob-game-name').textContent = gameNames[rs.game] || rs.game;
+
+    // Players
+    const pList = document.getElementById('lob-players');
+    pList.innerHTML = rs.players.map((p, i) => `
+      <div class="lobby-player-row">
+        <div class="lp-avatar" style="background:${COLORS[i%COLORS.length]};color:#1a1a2e">${p.name.charAt(0).toUpperCase()}</div>
+        <div class="lp-name">${esc(p.name)} ${p.id === myId ? '<span style="color:var(--accent4)">(jij)</span>' : ''}</div>
+        <div class="lp-badge">${p.isHost ? '👑 Host' : '🎮'}</div>
+      </div>
+    `).join('');
+
+    // Host controls
+    document.getElementById('lob-host-controls').classList.toggle('hidden', !amHost);
+    document.getElementById('lob-wait-msg').classList.toggle('hidden', !!amHost);
+
+    if (amHost) {
+      // Sync maxpoints
+      const pts = document.getElementById('lob-maxpts');
+      if (rs.settings?.maxPoints) pts.value = rs.settings.maxPoints;
+    }
+
+    // If game started AND we're on the lobby screen, go to game screen
+    // (Don't auto-redirect if we intentionally came back to lobby)
+    const onLobby = document.getElementById('screen-lobby').classList.contains('active');
+    if (rs.phase === 'ingame' && !onLobby) {
+      UI.enterGame();
+    }
+  },
+
+  enterGame() {
+    show('screen-game');
+    document.getElementById('game-room-code').textContent = myRoomState?.code || '';
+  },
+
+  backToLobby() {
+    // Reset game on server back to lobby so new players can join cleanly
+    if (isHost()) {
+      sendWS({ type: 'SET_GAME', game: myRoomState?.game || 'cah' });
+    }
+    show('screen-lobby');
+    // Small delay so server has time to reset before we refresh
+    setTimeout(() => UI.refreshLobby(), 100);
+  },
+
+  toggleChat() {
+    chatOpen = !chatOpen;
+    document.getElementById('chat-panel').classList.toggle('hidden', !chatOpen);
+    if (chatOpen) {
+      unread = 0;
+      document.querySelector('.chat-badge-dot')?.classList.remove('show');
+      const msgs = document.getElementById('chat-messages');
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+  },
+};
+
+// ===== GAME PICKER =====
+function initGamePickers() {
+  document.querySelectorAll('.game-picker').forEach(picker => {
+    picker.querySelectorAll('.gpick').forEach(el => {
+      el.addEventListener('click', () => {
+        const game = el.dataset.game;
+        if (picker.id === 'game-picker-create') {
+          picker.querySelectorAll('.gpick').forEach(g => g.classList.remove('active'));
+          el.classList.add('active');
+          selectedGame = game;
+        } else if (picker.id === 'game-picker-switch') {
+          App.switchGame(game);
+          toast('Spel wisselen naar ' + el.textContent + '...');
+        }
+      });
+    });
+  });
+}
+
+// ===== CHAT =====
+function addChatMsg(msg, scroll = true) {
+  const container = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+
+  if (msg.system) {
+    div.className = 'chat-msg sys';
+    div.textContent = msg.text;
+  } else {
+    const isMe = msg.playerId === myId;
+    div.className = `chat-msg ${isMe ? 'mine' : ''}`;
+    div.innerHTML = `<div class="chat-name">${esc(msg.playerName)}</div><div class="chat-text">${esc(msg.text)}</div>`;
+  }
+
+  container.appendChild(div);
+  if (scroll) container.scrollTop = container.scrollHeight;
+
+  if (!chatOpen && !msg.system) {
+    unread++;
+    const dot = document.querySelector('.chat-badge-dot');
+    if (dot) dot.classList.add('show');
+  }
+}
+
+// ===== HELPERS =====
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function toast(text) {
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.classList.add('show');
+  clearTimeout(window._toastT);
+  window._toastT = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function isHost() {
+  return myRoomState?.players?.find(p => p.id === myId)?.isHost || false;
+}
+
+// Add chat badge dot to chat toggle button
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('chat-toggle-btn');
+  if (btn) {
+    const dot = document.createElement('span');
+    dot.className = 'chat-badge-dot';
+    btn.appendChild(dot);
+  }
+  initGamePickers();
+});
+
+</script>
+<script>
+// ===== CARDS AGAINST HUMANITY =====
+const CAH = {
+  render(state) {
+    const area = document.getElementById('game-area');
+    if (!area) return;
+
+    if (state.phase === 'playing') CAH.renderPlaying(area, state);
+    else if (state.phase === 'judging') CAH.renderJudging(area, state);
+    else if (state.phase === 'scores') CAH.renderScores(area, state);
+    else CAH.renderLobby(area);
+  },
+
+  renderLobby(area) {
+    area.innerHTML = `
+      <div class="game-banner" style="background:linear-gradient(135deg,#1a1a1a,#2d2d2d)">
+        <div class="game-banner-title" style="color:white">🃏 Cards Against Humanity</div>
+        <div class="game-banner-sub">Voor vreselijk slechte mensen. Zoals jij.</div>
+      </div>
+      <div class="info-box"><h3>Hoe speel je?</h3>
+        <p>Één speler is de <strong>Kaart Tsaar</strong>. Die leest een zwarte kaart met een blanco. Iedereen submittet hun grappigste witte kaart. De Tsaar kiest de winnaar. Eerste naar <strong>${myRoomState?.settings?.maxPoints||7} punten</strong> wint.</p>
+      </div>
+      ${isHost() ? `
+        <button class="btn-start-game" onclick="App.startGame()">🚀 Start! (${myRoomState?.players?.length||1} spelers)</button>
+        ${(myRoomState?.players?.length||0)<3?'<p class="warn">⚠️ CAH is het leukst met 3+ spelers!</p>':''}
+      ` : '<div class="waiting-txt">Wachten op host om te starten...</div>'}
+    `;
+  },
+
+  renderPlaying(area, state) {
+    const isCzar = state.czar === myId;
+    const submitted = state.hasSubmitted;
+    const submittedCount = state.submittedIds?.length || 0;
+    const needed = (myRoomState?.players?.length || 1) - 1;
+
+    area.innerHTML = `
+      <div class="cah-topbar">
+        <span class="cah-round">Ronde ${state.round}</span>
+        <span class="cah-czar">🎩 Tsaar: <strong>${esc(state.czarName)}</strong></span>
+        <div class="sc-chips">
+          ${Object.entries(state.scores||{}).map(([pid, sc]) => {
+            const p = myRoomState?.players?.find(pl=>pl.id===pid);
+            return `<span class="sc-chip">${esc(p?.name||'?')}: ${sc}</span>`;
+          }).join('')}
+        </div>
+      </div>
+      <div class="black-card">
+        <div class="black-card-corner">CAH</div>
+        <div class="black-card-text">${esc(state.currentBlack||'')}</div>
+        <div class="black-card-pick">Kies 1</div>
+      </div>
+      ${isCzar ? `
+        <div class="czar-box">
+          <div style="font-size:2.5rem">👑</div>
+          <h3>Jij bent de Kaart Tsaar!</h3>
+          <p>Wacht tot iedereen een kaart heeft ingestuurd. Dan kies jij de winnaar.</p>
+          <div class="sub-counter">${submittedCount} / ${needed} ingestuurd...</div>
+        </div>
+      ` : submitted ? `
+        <div class="submitted-box">
+          <div style="font-size:2.5rem">✅</div>
+          <h3>Kaart ingediend!</h3>
+          <p>Jouw antwoord: <em>"${esc(state.mySubmission||'')}"</em></p>
+          <div class="sub-counter">${submittedCount} / ${needed} ingestuurd...</div>
+        </div>
+      ` : `
+        <div class="hand-label">Kies jouw beste antwoord:</div>
+        <div class="white-cards-grid">
+          ${(state.myHand||[]).map(card => `
+            <div class="wcard" onclick="CAH.submit(this, '${esc(card).replace(/'/g,"\\'")}')">
+              <div class="wcard-text">${esc(card)}</div>
+              <div class="wcard-brand">🂠</div>
+            </div>
+          `).join('')}
+        </div>
+      `}
+    `;
+  },
+
+  renderJudging(area, state) {
+    const isCzar = state.czar === myId;
+    const cards = Object.values(state.submissions || {});
+    // Shuffle for anonymity
+    const shuffled = [...cards].sort(() => Math.random() - 0.5);
+
+    area.innerHTML = `
+      <div class="cah-topbar">
+        <span class="cah-round">Ronde ${state.round}</span>
+        <span class="cah-czar">🎩 Tsaar: <strong>${esc(state.czarName)}</strong></span>
+      </div>
+      <div class="black-card">
+        <div class="black-card-corner">CAH</div>
+        <div class="black-card-text">${esc(state.currentBlack||'')}</div>
+      </div>
+      ${isCzar ? `
+        <div class="judge-box">
+          <h3>👑 Kies de grappigste kaart!</h3>
+        </div>
+        <div class="judge-grid">
+          ${shuffled.map(card => `
+            <div class="wcard judge-card" onclick="CAH.pickWinner('${esc(card).replace(/'/g,"\\'")}')">
+              <div class="wcard-text">${esc(card)}</div>
+              <div class="wcard-brand">🂠</div>
+            </div>
+          `).join('')}
+        </div>
+      ` : `
+        <div class="czar-box">
+          <div style="font-size:2.5rem">🤔</div>
+          <h3>Alle kaarten zijn binnen!</h3>
+          <p>De Kaart Tsaar kiest de winnaar...</p>
+        </div>
+        <div class="judge-grid">
+          ${shuffled.map(card => `
+            <div class="wcard" style="pointer-events:none;opacity:0.8">
+              <div class="wcard-text">${esc(card)}</div>
+              <div class="wcard-brand">🂠</div>
+            </div>
+          `).join('')}
+        </div>
+      `}
+    `;
+  },
+
+  renderScores(area, state) {
+    const maxPts = myRoomState?.settings?.maxPoints || 7;
+    const winnerPlayer = myRoomState?.players?.find(p => p.id === state.winner);
+    const lastWinnerPlayer = myRoomState?.players?.find(p => p.id === state.lastWinner);
+
+    area.innerHTML = `
+      ${state.winner ? `
+        <div class="game-winner">
+          <div style="font-size:3.5rem">🏆</div>
+          <h2>${esc(winnerPlayer?.name||'?')} WINT HET SPEL!</h2>
+          <p style="color:var(--text2);margin-top:0.4rem">Met ${state.scores?.[state.winner]||maxPts} punten. Wat een legend.</p>
+        </div>
+      ` : `
+        <div class="round-winner">
+          <div style="font-size:2.5rem">🎉</div>
+          <h3>${esc(lastWinnerPlayer?.name||'?')} wint deze ronde!</h3>
+          <p>"${esc(state.lastWinningCard||'')}"</p>
+        </div>
+      `}
+      <div style="margin-bottom:0.75rem">
+        ${(myRoomState?.players||[])
+          .sort((a,b)=>(state.scores?.[b.id]||0)-(state.scores?.[a.id]||0))
+          .map(p => `
+            <div class="scores-row ${p.id===state.lastWinner?'winner':''}">
+              <span class="sc-name">${esc(p.name)}</span>
+              <div class="sc-bar-wrap"><div class="sc-bar" style="width:${Math.min(100,((state.scores?.[p.id]||0)/maxPts)*100)}%"></div></div>
+              <span class="sc-pts">${state.scores?.[p.id]||0}/${maxPts}</span>
+            </div>
+          `).join('')}
+      </div>
+      ${isHost() ? `
+        <button class="cah-next-btn" onclick="sendWS({type:'GAME_ACTION',action:'NEXT_ROUND'})">
+          ${state.winner ? '🔄 Nieuw Spel' : '➡️ Volgende Ronde'}
+        </button>
+      ` : '<div class="waiting-txt">Wachten op host...</div>'}
+    `;
+  },
+
+  submit(el, card) {
+    document.querySelectorAll('.wcard').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    setTimeout(() => sendWS({ type: 'GAME_ACTION', action: 'SUBMIT_CARD', card }), 250);
+  },
+
+  pickWinner(card) {
+    sendWS({ type: 'GAME_ACTION', action: 'PICK_WINNER', card });
+  },
+};
+
+</script>
+<script>
+// ===== POKER =====
+const Poker = {
+  render(state) {
+    const area = document.getElementById('game-area');
+    if (!area) return;
+    if (!state || !state.phase || state.phase === 'waiting') { Poker.renderLobby(area); return; }
+    if (state.phase === 'showdown') { Poker.renderShowdown(area, state); return; }
+    Poker.renderGame(area, state);
+  },
+
+  renderLobby(area) {
+    area.innerHTML = `
+      <div class="game-banner" style="background:linear-gradient(135deg,#0a3a0a,#1a5a1a)">
+        <div class="game-banner-title" style="color:white">♠️ Texas Hold'em Poker</div>
+        <div class="game-banner-sub">Bluf je vrienden arm. Letterlijk.</div>
+      </div>
+      <div class="info-box"><h3>Hoe speel je?</h3>
+        <p>Texas Hold'em. Iedereen start met <strong>$1.000</strong>. Small blind $10, big blind $20. Community kaarten na elke betsronde. Beste 5-kaarten hand wint de pot!</p>
+      </div>
+      <div class="info-box"><h3>Spelers</h3>
+        ${(myRoomState?.players||[]).map((p,i)=>`<div style="padding:0.3rem 0">${['🚂','🎩','👟','🐕','🚗','⛵'][i]||'👤'} ${esc(p.name)} — $1.000 ${p.isHost?'👑':''}</div>`).join('')}
+      </div>
+      ${isHost() ? `
+        <button class="btn-start-game" style="background:linear-gradient(135deg,#2d8a2d,#1a5a1a)" onclick="App.startGame()">♠️ Deal Cards!</button>
+        ${(myRoomState?.players?.length||0)<2?'<p class="warn">⚠️ Poker heeft minstens 2 spelers nodig!</p>':''}
+      ` : '<div class="waiting-txt">Wachten op host om te dealen...</div>'}
+    `;
+  },
+
+  renderGame(area, state) {
+    const myHand = state.myHand?.[myId] || state.myHand || [];
+    const isMyTurn = state.players?.[state.currentPlayerIndex] === myId;
+    const isFolded = state.folded?.[myId];
+    const myBet = state.bets?.[myId] || 0;
+    const myChips = state.chips?.[myId] || 0;
+    const toCall = Math.max(0, (state.currentBet||0) - myBet);
+    const tokens = ['🚂','🎩','👟','🐕','🚗','⛵'];
+    const dealerName = myRoomState?.players?.find(p=>p.id===state.players?.[state.dealerIndex])?.name||'?';
+
+    area.innerHTML = `
+      <div class="poker-info">
+        <strong>${(state.phase||'').toUpperCase()}</strong>
+        <span>💰 Pot: <strong>$${state.pot||0}</strong></span>
+        <span>🎯 Dealer: ${esc(dealerName)}</span>
+        ${isMyTurn&&!isFolded ? '<span class="your-turn-pill">JOUW BEURT!</span>' : ''}
+      </div>
+
+      <div class="community-box">
+        <div class="community-label">Community Cards</div>
+        <div class="cards-row">
+          ${(state.community||[]).map(c=>Poker.card(c)).join('')}
+          ${Array.from({length:5-(state.community?.length||0)},()=>'<div class="pcard pcard-back">🂠</div>').join('')}
+        </div>
+      </div>
+
+      <div class="poker-seats">
+        ${(state.players||[]).map((pid,i) => {
+          const p = myRoomState?.players?.find(pl=>pl.id===pid);
+          const chips = state.chips?.[pid]||0;
+          const bet = state.bets?.[pid]||0;
+          const folded = state.folded?.[pid];
+          const isCurrent = state.players[state.currentPlayerIndex]===pid;
+          const hand = pid===myId ? (Array.isArray(myHand)?myHand:[]) : null;
+          return `
+            <div class="seat ${folded?'folded':''} ${isCurrent?'active-turn':''}">
+              <div class="seat-name">${tokens[i]||'👤'} ${esc(p?.name||'?')} ${pid===myId?'<span style="color:var(--accent4)">(jij)</span>':''}</div>
+              <div class="seat-chips">$${chips}</div>
+              <div class="seat-bet">${bet>0?`inzet: $${bet}`:''}</div>
+              ${folded?'<div class="seat-fold-tag">GEPAST</div>':''}
+              ${pid===myId&&hand ? `<div class="my-hole">${hand.map(c=>Poker.card(c)).join('')}</div>` : '<div class="hidden-cards">🂠🂠</div>'}
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      ${isMyTurn && !isFolded ? `
+        <div class="poker-actions">
+          <button class="paction pa-fold" onclick="sendWS({type:'GAME_ACTION',action:'FOLD'})">🚫 Passen</button>
+          ${toCall===0 ? `<button class="paction pa-check" onclick="sendWS({type:'GAME_ACTION',action:'CHECK'})">✋ Check</button>` : ''}
+          ${toCall>0 ? `<button class="paction pa-call" onclick="sendWS({type:'GAME_ACTION',action:'CALL'})">📲 Callen $${toCall}</button>` : ''}
+          ${myChips>toCall ? `<button class="paction pa-raise" onclick="Poker.showRaise(${toCall}, ${myChips}, ${state.blind||10})">📈 Raisen</button>` : ''}
+        </div>
+        <div class="raise-row hidden" id="raise-row">
+          <span>Raise:</span>
+          <input type="range" id="raise-slider" min="${(state.blind||10)*2}" max="${Math.max((state.blind||10)*2, myChips-toCall)}" step="${state.blind||10}" value="${(state.blind||10)*2}" oninput="document.getElementById('raise-amt').textContent='$'+this.value">
+          <strong id="raise-amt">$${(state.blind||10)*2}</strong>
+          <button class="paction pa-raise" onclick="Poker.confirmRaise()" style="flex:0;padding:0.5rem 0.9rem">Raise!</button>
+        </div>
+      ` : !isFolded ? `<div class="waiting-txt">Wachten op ${esc(state.currentPlayerName||'?')}...</div>` : `<div class="waiting-txt">Je hebt gepast. Volgende keer beter!</div>`}
+    `;
+  },
+
+  renderShowdown(area, state) {
+    const winnerPlayer = myRoomState?.players?.find(p=>p.id===state.winner);
+    const tokens = ['🚂','🎩','👟','🐕','🚗','⛵'];
+    area.innerHTML = `
+      <div class="poker-showdown">
+        <div style="font-size:3rem">🏆</div>
+        <h3>${esc(winnerPlayer?.name||'?')} wint de pot!</h3>
+        ${state.pot===0?`<p style="color:var(--text2)">Pot gewonnen</p>`:''}
+      </div>
+      <div class="chips-list">
+        ${(state.players||[]).map((pid,i)=>{
+          const p=myRoomState?.players?.find(pl=>pl.id===pid);
+          return `<div class="chip-row"><span>${tokens[i]||'👤'} ${esc(p?.name||'?')}</span><span style="color:var(--accent3);font-weight:800">$${state.chips?.[pid]||0}</span></div>`;
+        }).join('')}
+      </div>
+      ${isHost() ? `<button class="btn-start-game" style="background:linear-gradient(135deg,#2d8a2d,#1a5a1a)" onclick="sendWS({type:'GAME_ACTION',action:'NEXT_HAND'})">🔄 Volgende Hand</button>` : '<div class="waiting-txt">Wachten op host...</div>'}
+    `;
+  },
+
+  card(c) {
+    if (!c) return '';
+    const red = c.s==='♥'||c.s==='♦';
+    return `<div class="pcard ${red?'red':'black'}"><div class="pcard-r">${c.r}</div><div class="pcard-s">${c.s}</div></div>`;
+  },
+
+  showRaise(toCall, myChips, blind) {
+    document.getElementById('raise-row')?.classList.toggle('hidden');
+  },
+
+  confirmRaise() {
+    const amt = parseInt(document.getElementById('raise-slider')?.value || 0);
+    sendWS({ type: 'GAME_ACTION', action: 'RAISE', amount: amt });
+  },
+};
+
+</script>
+<script>
+// ===== MONOPOLY =====
+const BOARD = [
+  {n:'GO',t:'go'},{n:'Mediterranean',t:'prop',c:'#8B4513',p:60,r:2},{n:'Community Chest',t:'chest'},
+  {n:'Baltic',t:'prop',c:'#8B4513',p:60,r:4},{n:'Income Tax',t:'tax',a:200},
+  {n:'Reading RR',t:'rr',p:200,r:25},{n:'Oriental',t:'prop',c:'#87CEEB',p:100,r:6},
+  {n:'Chance',t:'chance'},{n:'Vermont',t:'prop',c:'#87CEEB',p:100,r:6},
+  {n:'Connecticut',t:'prop',c:'#87CEEB',p:120,r:8},{n:'Jail',t:'jail'},
+  {n:'St. Charles',t:'prop',c:'#FF69B4',p:140,r:10},{n:'Electric Co.',t:'util',p:150,r:0},
+  {n:'States',t:'prop',c:'#FF69B4',p:140,r:10},{n:'Virginia',t:'prop',c:'#FF69B4',p:160,r:12},
+  {n:'Pennsylvania RR',t:'rr',p:200,r:25},{n:'St. James',t:'prop',c:'#FFA500',p:180,r:14},
+  {n:'Community Chest',t:'chest'},{n:'Tennessee',t:'prop',c:'#FFA500',p:180,r:14},
+  {n:'New York',t:'prop',c:'#FFA500',p:200,r:16},{n:'Free Parking',t:'free'},
+  {n:'Kentucky',t:'prop',c:'#e00',p:220,r:18},{n:'Chance',t:'chance'},
+  {n:'Indiana',t:'prop',c:'#e00',p:220,r:18},{n:'Illinois',t:'prop',c:'#e00',p:240,r:20},
+  {n:'B&O RR',t:'rr',p:200,r:25},{n:'Atlantic',t:'prop',c:'#FFD700',p:260,r:22},
+  {n:'Ventnor',t:'prop',c:'#FFD700',p:260,r:22},{n:'Water Works',t:'util',p:150,r:0},
+  {n:'Marvin Gardens',t:'prop',c:'#FFD700',p:280,r:24},{n:'Go To Jail',t:'gotojail'},
+  {n:'Pacific',t:'prop',c:'#0a0',p:300,r:26},{n:'N. Carolina',t:'prop',c:'#0a0',p:300,r:26},
+  {n:'Community Chest',t:'chest'},{n:'Pennsylvania',t:'prop',c:'#0a0',p:320,r:28},
+  {n:'Short Line RR',t:'rr',p:200,r:25},{n:'Chance',t:'chance'},
+  {n:'Park Place',t:'prop',c:'#4444ff',p:350,r:35},{n:'Luxury Tax',t:'tax',a:100},
+  {n:'Boardwalk',t:'prop',c:'#4444ff',p:400,r:50}
+];
+
+const TOKENS = ['🚂','🎩','👟','🐕','🚗','⛵','🎲','🤑'];
+const TCOLORS = ['#FF6B6B','#4ECDC4','#FFE66D','#A8E6CF','#FF8B94','#B4F8C8','#FBE7C6','#A0C4FF'];
+
+const Mono = {
+  render(state) {
+    const area = document.getElementById('game-area');
+    if (!area) return;
+    if (!state) { Mono.renderLobby(area); return; }
+    Mono.renderGame(area, state);
+  },
+
+  renderLobby(area) {
+    area.innerHTML = `
+      <div class="game-banner" style="background:linear-gradient(135deg,#1a0a2e,#2d1a5a)">
+        <div class="game-banner-title" style="color:white">🏦 Monopoly</div>
+        <div class="game-banner-sub">Vernietig je vriendschappen. Legaal.</div>
+      </div>
+      <div class="info-box"><h3>Hoe speel je?</h3>
+        <p>Gooi dobbelstenen, beweeg over het bord, koop straten, vraag huur! Start met <strong>€1.500</strong>. Passeer GO → +€200. Maak je tegenstanders failliet!</p>
+      </div>
+      <div class="info-box"><h3>Spelers</h3>
+        ${(myRoomState?.players||[]).map((p,i)=>`<div style="padding:0.3rem 0">${TOKENS[i]||'👤'} ${esc(p.name)} — €1.500 ${p.isHost?'👑':''}</div>`).join('')}
+      </div>
+      ${isHost() ? `
+        <button class="btn-start-game" style="background:linear-gradient(135deg,#4d1a99,#2d0a66)" onclick="App.startGame()">🎲 Start Spel!</button>
+        ${(myRoomState?.players?.length||0)<2?'<p class="warn">⚠️ Monopoly heeft minstens 2 spelers nodig!</p>':''}
+      ` : '<div class="waiting-txt">Wachten op host om te starten...</div>'}
+    `;
+  },
+
+  renderGame(area, state) {
+    const isMyTurn = state.current === myId;
+    const myPos = state.pos?.[myId] || 0;
+    const myMoney = state.money?.[myId] || 0;
+    const sq = BOARD[myPos];
+    const canBuy = state.rolled && sq && (sq.t==='prop'||sq.t==='rr'||sq.t==='util')
+      && !state.props?.[myPos] && myMoney >= (sq.p||9999);
+    const currentName = myRoomState?.players?.find(p=>p.id===state.current)?.name||'?';
+
+    area.innerHTML = `
+      <div class="mono-topbar">
+        ${state.dice ? `<span>🎲 ${state.dice[0]}+${state.dice[1]}=${state.dice[0]+state.dice[1]}</span>` : '<span>🎲 Geen worp</span>'}
+        ${isMyTurn ? '<span class="your-turn-pill">JOUW BEURT!</span>' : `<span>⏳ ${esc(currentName)} is aan de beurt</span>`}
+      </div>
+
+      <div class="mono-board-wrap">
+        <div class="mono-board">${Mono.renderBoard(state)}</div>
+      </div>
+
+      <div class="mono-seats">
+        ${(state.players||[]).map((pid,i)=>{
+          const p = myRoomState?.players?.find(pl=>pl.id===pid);
+          const money = state.money?.[pid]||0;
+          const pos = state.pos?.[pid]||0;
+          const inJail = state.jail?.[pid];
+          const bankrupt = state.bankrupt?.[pid];
+          const isCurrent = state.current===pid;
+          const owned = Object.values(state.props||{}).filter(o=>o===pid).length;
+          return `
+            <div class="mono-seat ${isCurrent?'current':''} ${bankrupt?'bankrupt':''}">
+              <div class="m-token-lg">${TOKENS[i]||'👤'}</div>
+              <div>
+                <div class="m-name">${esc(p?.name||'?')} ${pid===myId?'<span style="color:var(--accent4)">(jij)</span>':''}</div>
+                <div class="m-money" style="color:${money>0?'var(--accent3)':'var(--accent)'}">€${money}</div>
+                <div class="m-sub">${BOARD[pos]?.n||'?'} • ${owned} strd${inJail?' • 🔒 Gevangenis':''}${bankrupt?' • 💀 FAILLIET':''}</div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      ${isMyTurn ? `
+        <div class="mono-sq-info">
+          <strong>Jij staat op:</strong> ${sq?.n||'?'}
+          ${sq?.p?` — €${sq.p}`:''}
+          ${(sq?.t==='prop'||sq?.t==='rr'||sq?.t==='util') ? `
+            <span class="sq-badge" style="background:${sq?.c||'#555'};color:${Mono.darkBg(sq?.c)?'white':'#111'}">
+              ${state.props?.[myPos] ? (state.props[myPos]===myId ? '✅ Van jou' : `💸 Huur: €${sq?.r||25}`) : '🔓 Te koop'}
+            </span>
+          ` : ''}
+        </div>
+        <div class="mono-actions">
+          ${!state.rolled ? `<button class="maction ma-roll" onclick="sendWS({type:'GAME_ACTION',action:'ROLL'})">🎲 Gooi Dobbelstenen</button>` : ''}
+          ${canBuy ? `<button class="maction ma-buy" onclick="sendWS({type:'GAME_ACTION',action:'BUY'})">🏠 Koop ${sq?.n} (€${sq?.p})</button>` : ''}
+          ${state.rolled ? `<button class="maction ma-end" onclick="sendWS({type:'GAME_ACTION',action:'END_TURN'})">➡️ Beurt Beëindigen</button>` : ''}
+        </div>
+      ` : ''}
+
+      <div class="mono-log">
+        ${(state.log||[]).slice(0,10).map(l=>`<div class="log-line">📢 ${esc(l)}</div>`).join('')}
+      </div>
+    `;
+  },
+
+  renderBoard(state) {
+    return BOARD.map((sq, i) => {
+      const owner = state.props?.[i];
+      const ownerIdx = owner ? (state.players||[]).indexOf(owner) : -1;
+      const here = (state.players||[]).filter(pid=>(state.pos?.[pid]||0)===i);
+      let bg = '#1a1a2e';
+      if (sq.t==='prop'&&sq.c) bg = sq.c+'22';
+      else if (sq.t==='go') bg = '#00330055';
+      else if (sq.t==='jail') bg = '#33220055';
+      else if (sq.t==='gotojail') bg = '#33000055';
+      else if (sq.t==='free') bg = '#00220055';
+      else if (sq.t==='chance') bg = '#2a1a0055';
+      else if (sq.t==='chest') bg = '#001a3355';
+      else if (sq.t==='rr') bg = '#11111155';
+      else if (sq.t==='tax') bg = '#1a000055';
+      return `
+        <div class="mcell" style="background:${bg}" title="${sq.n}">
+          <div class="mcell-name">${sq.n.split(' ')[0]}</div>
+          ${owner&&ownerIdx>=0?`<div class="mcell-owner" style="background:${TCOLORS[ownerIdx]}"></div>`:''}
+          <div class="mcell-tokens">
+            ${here.map(pid=>{const pi=(state.players||[]).indexOf(pid);return `<span class="mtoken-sm">${TOKENS[pi]||'●'}</span>`;}).join('')}
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  darkBg(hex) {
+    if (!hex||hex.length<7) return true;
+    const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+    return (r*0.299+g*0.587+b*0.114)<128;
+  },
+};
+
+</script>
+</body>
+</html>

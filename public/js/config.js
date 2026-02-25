@@ -7,4 +7,4 @@
 // Voorbeeld lokaal:    ""
 // ============================================================
 
-window.GAME_SERVER_URL = "";
+window.GAME_SERVER_URL = "game-production-d0c8.up.railway.app";

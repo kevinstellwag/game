@@ -203,41 +203,98 @@ input,textarea,button{font-family:'Nunito',sans-serif}
 .chips-list{display:flex;flex-direction:column;gap:0.35rem;margin-bottom:0.75rem}
 .chip-row{display:flex;justify-content:space-between;padding:0.5rem 0.9rem;background:var(--card);border-radius:8px;border:1px solid var(--border)}
 
-/* ===== MONOPOLY ===== */
-.mono-topbar{display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;background:#0d0d2e;border:1px solid #2d2d5a;border-radius:9px;padding:0.55rem 0.9rem;font-size:0.82rem;margin-bottom:0.75rem}
-.mono-board-wrap{overflow-x:auto;margin-bottom:0.75rem}
-.mono-board{display:grid;grid-template-columns:repeat(10,1fr);gap:2px;min-width:300px;background:#000;border-radius:9px;padding:3px}
-.mcell{aspect-ratio:1;border-radius:3px;padding:2px;position:relative;overflow:hidden;min-width:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.05);cursor:default}
-.mcell-name{font-size:0.35rem;color:rgba(255,255,255,0.65);text-align:center;line-height:1.1;pointer-events:none}
-.mcell-owner{width:5px;height:5px;border-radius:50%;position:absolute;bottom:2px;right:2px}
-.mcell-tokens{display:flex;flex-wrap:wrap;gap:0px;position:absolute;top:2px;left:2px}
-.mtoken-sm{font-size:0.6rem;line-height:1}
-.mono-seats{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:0.6rem;margin-bottom:0.75rem}
-.mono-seat{display:flex;gap:0.5rem;align-items:flex-start;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:0.6rem}
-.mono-seat.current{border-color:var(--accent2);background:rgba(255,217,61,0.07)}
-.mono-seat.bankrupt{opacity:0.35;filter:grayscale(1)}
-.m-token-lg{font-size:1.4rem}
-.m-name{font-weight:800;font-size:0.85rem}
-.m-money{font-family:'Bangers',cursive;font-size:1.1rem}
-.m-sub{font-size:0.7rem;color:var(--text2)}
-.mono-sq-info{display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;background:var(--card);border-radius:9px;padding:0.7rem 0.9rem;border:1px solid var(--border);margin-bottom:0.5rem;font-weight:700}
-.sq-badge{padding:0.15rem 0.55rem;border-radius:5px;font-size:0.78rem;font-weight:800}
-.mono-actions{display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem}
-.maction{flex:1;min-width:90px;padding:0.7rem 0.5rem;border:none;border-radius:9px;color:white;font-weight:800;font-size:0.88rem;cursor:pointer;transition:all 0.15s}
-.maction:hover{filter:brightness(1.15);transform:translateY(-1px)}
-.ma-roll{background:linear-gradient(135deg,#4d1a99,#9933ff)}
-.ma-buy{background:linear-gradient(135deg,#006600,#00aa00)}
+
+/* ===== MONOPOLY NEW ===== */
+.mono-topbar{display:flex;align-items:center;justify-content:space-between;background:#0d1a0d;border:1px solid #1a3a1a;border-radius:10px;padding:0.55rem 0.9rem;margin-bottom:0.6rem;gap:0.5rem;flex-wrap:wrap}
+.mono-tb-left,.mono-tb-right{display:flex;align-items:center;gap:0.4rem;min-width:80px}
+.mono-tb-mid{flex:1;text-align:center}
+.mono-tb-right{justify-content:flex-end}
+.mono-dice{background:#1a3a1a;border:2px solid #2a5a2a;border-radius:8px;padding:0.2rem 0.5rem;font-size:1rem;font-weight:900}
+.free-pass-badge{background:#ffd93d;color:#111;border-radius:20px;padding:0.1rem 0.5rem;font-size:0.72rem;font-weight:900}
+
+/* BOARD */
+.mono-board-container{position:relative;width:100%;max-width:520px;margin:0 auto 0.75rem;aspect-ratio:1}
+.mono-board{display:grid;grid-template-columns:repeat(10,1fr);grid-template-rows:repeat(10,1fr);gap:2px;width:100%;height:100%;background:#000;border-radius:10px;padding:2px;border:2px solid #1a3a1a}
+.mcell{border-radius:3px;padding:2px;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;border:1px solid rgba(255,255,255,0.04);cursor:default;transition:filter 0.15s;min-width:0;min-height:0}
+.mcell:hover{filter:brightness(1.3);z-index:2}
+.mcell-empty{background:transparent!important;border:none!important}
+.mcell-emoji{font-size:clamp(0.5rem,1.8vw,1rem);line-height:1;margin-top:1px}
+.mcell-name{font-size:clamp(0.25rem,0.9vw,0.45rem);color:rgba(255,255,255,0.6);text-align:center;line-height:1.1;overflow:hidden;max-height:1.5em;word-break:break-all}
+.mcell-level{position:absolute;top:1px;right:1px;font-size:clamp(0.3rem,0.8vw,0.55rem);line-height:1}
+.mcell-owner-band{position:absolute;bottom:0;left:0;right:0;height:3px;border-radius:0 0 2px 2px}
+.mcell-tokens{position:absolute;top:1px;left:1px;display:flex;flex-wrap:wrap;gap:1px;z-index:3}
+.mtoken-sm{border-radius:50%;width:clamp(8px,2vw,14px);height:clamp(8px,2vw,14px);display:flex;align-items:center;justify-content:center;font-size:clamp(0.3rem,1vw,0.6rem);font-weight:900;border:1px solid rgba(0,0,0,0.3);transition:all 0.1s;animation:tokenPop 0.2s ease}
+@keyframes tokenPop{0%{transform:scale(0)}60%{transform:scale(1.3)}100%{transform:scale(1)}}
+
+/* CENTER */
+.mono-center{position:absolute;top:10%;left:10%;right:10%;bottom:10%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#0a1a0a,#0d0d1a);border-radius:8px;border:1px solid #1a3a1a;overflow:hidden}
+.mono-center-title{font-family:'Bangers',cursive;font-size:clamp(0.8rem,3vw,1.5rem);letter-spacing:3px;color:#6bcb77;text-align:center;text-shadow:0 0 20px rgba(107,203,119,0.4)}
+.mono-legend{display:flex;flex-direction:column;gap:2px;margin-top:0.4rem;width:100%;padding:0 0.4rem}
+.mono-legend-row{display:flex;align-items:center;gap:0.3rem;opacity:1;transition:opacity 0.3s}
+.mono-legend-row.bankrupt{opacity:0.3}
+.mono-legend-tok{border-radius:50%;width:clamp(12px,2vw,18px);height:clamp(12px,2vw,18px);display:flex;align-items:center;justify-content:center;font-size:clamp(0.4rem,1vw,0.65rem);font-weight:900;flex-shrink:0}
+.mono-legend-name{flex:1;font-size:clamp(0.4rem,1vw,0.65rem);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mono-legend-money{font-family:'Bangers',cursive;font-size:clamp(0.4rem,1vw,0.65rem);color:#6bcb77;flex-shrink:0}
+
+/* MY PROPERTIES */
+.mono-props{margin-bottom:0.75rem}
+.mono-props-title{font-family:'Bangers',cursive;font-size:1.1rem;letter-spacing:2px;color:#ffd93d;margin-bottom:0.4rem}
+.mono-props-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:0.4rem}
+.mono-prop-card{background:#1a1a2e;border:2px solid #333;border-radius:9px;padding:0.5rem;text-align:center;transition:border-color 0.2s}
+.mpc-emoji{font-size:1.2rem;line-height:1}
+.mpc-name{font-size:0.7rem;font-weight:800;color:white;margin:0.1rem 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mpc-level{font-size:0.65rem;color:#aaa;margin-bottom:0.3rem}
+.mpc-upgrade{width:100%;padding:0.3rem;background:linear-gradient(135deg,#228b22,#0a5a0a);border:none;border-radius:6px;color:white;font-size:0.7rem;font-weight:800;cursor:pointer;transition:all 0.15s}
+.mpc-upgrade:hover{filter:brightness(1.2)}
+.mpc-rent{font-size:0.65rem;color:#6bcb77;font-weight:700}
+
+/* ACTIONS */
+.mono-actions{display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.6rem}
+.maction{flex:1;min-width:100px;padding:0.75rem 0.5rem;border:none;border-radius:10px;color:white;font-weight:800;font-size:0.9rem;cursor:pointer;transition:all 0.2s;font-family:'Nunito',sans-serif}
+.maction:hover{transform:translateY(-2px);filter:brightness(1.15)}
+.ma-roll{background:linear-gradient(135deg,#4d1a99,#9933ff);box-shadow:0 4px 16px rgba(153,51,255,0.3)}
 .ma-end{background:linear-gradient(135deg,#333,#555)}
-.mono-log{background:var(--card);border-radius:9px;padding:0.7rem;border:1px solid var(--border);max-height:130px;overflow-y:auto}
+.ma-free{background:linear-gradient(135deg,#cc9900,#ffd93d);color:#111}
+
+/* LOG */
+.mono-log{background:#0d0d1a;border:1px solid #1a1a3a;border-radius:9px;padding:0.6rem 0.75rem;max-height:110px;overflow-y:auto}
 .mono-log::-webkit-scrollbar{width:3px}
-.mono-log::-webkit-scrollbar-thumb{background:var(--border)}
-.log-line{font-size:0.78rem;color:var(--text2);padding:0.12rem 0;border-bottom:1px solid var(--border)}
+.mono-log::-webkit-scrollbar-thumb{background:#2a2a4a;border-radius:2px}
+.log-line{font-size:0.78rem;color:#9999bb;padding:0.1rem 0;border-bottom:1px solid rgba(255,255,255,0.04)}
 .log-line:last-child{border:none}
 
-@media(max-width:480px){
-  .home-btns{flex-direction:column}
-  .logo-title{font-size:3rem}
-}
+/* POPUPS */
+.mono-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem;animation:fadeIn 0.2s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.popup-card{background:#1a1a2e;border:3px solid #333;border-radius:18px;padding:1.5rem;max-width:340px;width:100%;text-align:center;animation:popIn 0.25s cubic-bezier(0.34,1.56,0.64,1)}
+@keyframes popIn{from{transform:scale(0.7);opacity:0}to{transform:scale(1);opacity:1}}
+.popup-buy{border-color:#6bcb77}
+.popup-rent{border-color:#ff6b6b}
+.popup-chance{border-color:#ffd93d}
+.popup-chest{border-color:#4d96ff}
+.popup-jail{border-color:#ff0000}
+.popup-tax{border-color:#ff9f43}
+.popup-spin-intro{border-color:#ffd93d}
+.popup-spin-result{border-color:#fff}
+.popup-emoji{font-size:3.5rem;margin-bottom:0.5rem}
+.popup-title{font-family:'Bangers',cursive;font-size:1.8rem;letter-spacing:2px;color:white;margin-bottom:0.4rem}
+.popup-desc{color:#aaa;font-style:italic;font-size:0.88rem;margin-bottom:0.6rem}
+.popup-text{color:#ddd;font-size:1rem;font-weight:700;margin:0.5rem 0 1rem;line-height:1.4}
+.popup-price{color:#ffd93d;font-size:1rem;margin-bottom:0.25rem}
+.popup-rent-txt{color:#ff6b6b;font-size:1rem;margin-bottom:0.75rem}
+.popup-upgrades{display:flex;justify-content:center;gap:0.4rem;margin:0.4rem 0 0.75rem;font-size:1.2rem}
+.popup-actions{display:flex;flex-direction:column;gap:0.5rem;margin-top:0.75rem}
+.pop-btn{padding:0.75rem 1rem;border:none;border-radius:10px;font-weight:900;font-size:0.95rem;cursor:pointer;transition:all 0.15s;font-family:'Nunito',sans-serif}
+.pop-btn:hover{transform:translateY(-2px);filter:brightness(1.1)}
+.pop-buy{background:linear-gradient(135deg,#228b22,#6bcb77);color:white}
+.pop-skip{background:#2a2a4a;color:#aaa;border:2px solid #333}
+.pop-dash{background:linear-gradient(135deg,#ff9f43,#ff6b6b);color:white}
+.pop-pay{background:#2a2a4a;color:#ddd;border:2px solid #555}
+.pop-ok{background:linear-gradient(135deg,#4d96ff,#2356d4);color:white;margin-top:0.5rem;width:100%}
+.pop-spin{background:linear-gradient(135deg,#9933ff,#4d1a99);color:white;font-size:1.1rem;padding:1rem;animation:pulse 1s infinite}
+.popup-waiting{color:#666;font-style:italic;margin-top:0.75rem;font-size:0.88rem}
+.spin-result-icon{font-size:4rem;margin-bottom:0.5rem;animation:bounce 0.5s ease}
+@keyframes bounce{0%{transform:scale(0);opacity:0}60%{transform:scale(1.3)}100%{transform:scale(1);opacity:1}}
 
 </style>
 </head>
@@ -972,157 +1029,440 @@ const Poker = {
 </script>
 <script>
 // ===== MONOPOLY =====
-const BOARD = [
-  {n:'GO',t:'go'},{n:'Mediterranean',t:'prop',c:'#8B4513',p:60,r:2},{n:'Community Chest',t:'chest'},
-  {n:'Baltic',t:'prop',c:'#8B4513',p:60,r:4},{n:'Income Tax',t:'tax',a:200},
-  {n:'Reading RR',t:'rr',p:200,r:25},{n:'Oriental',t:'prop',c:'#87CEEB',p:100,r:6},
-  {n:'Chance',t:'chance'},{n:'Vermont',t:'prop',c:'#87CEEB',p:100,r:6},
-  {n:'Connecticut',t:'prop',c:'#87CEEB',p:120,r:8},{n:'Jail',t:'jail'},
-  {n:'St. Charles',t:'prop',c:'#FF69B4',p:140,r:10},{n:'Electric Co.',t:'util',p:150,r:0},
-  {n:'States',t:'prop',c:'#FF69B4',p:140,r:10},{n:'Virginia',t:'prop',c:'#FF69B4',p:160,r:12},
-  {n:'Pennsylvania RR',t:'rr',p:200,r:25},{n:'St. James',t:'prop',c:'#FFA500',p:180,r:14},
-  {n:'Community Chest',t:'chest'},{n:'Tennessee',t:'prop',c:'#FFA500',p:180,r:14},
-  {n:'New York',t:'prop',c:'#FFA500',p:200,r:16},{n:'Free Parking',t:'free'},
-  {n:'Kentucky',t:'prop',c:'#e00',p:220,r:18},{n:'Chance',t:'chance'},
-  {n:'Indiana',t:'prop',c:'#e00',p:220,r:18},{n:'Illinois',t:'prop',c:'#e00',p:240,r:20},
-  {n:'B&O RR',t:'rr',p:200,r:25},{n:'Atlantic',t:'prop',c:'#FFD700',p:260,r:22},
-  {n:'Ventnor',t:'prop',c:'#FFD700',p:260,r:22},{n:'Water Works',t:'util',p:150,r:0},
-  {n:'Marvin Gardens',t:'prop',c:'#FFD700',p:280,r:24},{n:'Go To Jail',t:'gotojail'},
-  {n:'Pacific',t:'prop',c:'#0a0',p:300,r:26},{n:'N. Carolina',t:'prop',c:'#0a0',p:300,r:26},
-  {n:'Community Chest',t:'chest'},{n:'Pennsylvania',t:'prop',c:'#0a0',p:320,r:28},
-  {n:'Short Line RR',t:'rr',p:200,r:25},{n:'Chance',t:'chance'},
-  {n:'Park Place',t:'prop',c:'#4444ff',p:350,r:35},{n:'Luxury Tax',t:'tax',a:100},
-  {n:'Boardwalk',t:'prop',c:'#4444ff',p:400,r:50}
+// Board layout matches server's MONO_BOARD (40 squares, clockwise from bottom-right)
+// 0-9: bottom row right→left, 10-19: left col bottom→top, 20-29: top row left→right, 30-39: right col top→bottom
+
+const MONO_BOARD_CLIENT = [
+  {n:'START',t:'go',emoji:'💰',c:'#1a4a1a'},{n:'Crack Steeg',t:'prop',emoji:'🏚️',c:'#7B3F00'},
+  {n:'Kans',t:'chance',emoji:'🎲',c:'#2a2a1a'},{n:'Jordaan Slop',t:'prop',emoji:'🏚️',c:'#7B3F00'},
+  {n:'Energieheffing',t:'tax',emoji:'⚡',c:'#3a1a1a'},{n:'Tramlijn 9',t:'rr',emoji:'🚋',c:'#1a1a3a'},
+  {n:'AH Straat',t:'prop',emoji:'🛒',c:'#0a3a4a'},{n:'Kans',t:'chance',emoji:'🎲',c:'#2a2a1a'},
+  {n:'Wallen Wijk',t:'prop',emoji:'🪟',c:'#0a3a4a'},{n:'Coffeeshop',t:'prop',emoji:'☕',c:'#0a3a4a'},
+  {n:'Gevangenis',t:'jail',emoji:'🔒',c:'#1a1a3a'},{n:'Kattenburgh',t:'prop',emoji:'🐱',c:'#3a0a2a'},
+  {n:'Waterleiding',t:'util',emoji:'💧',c:'#1a3a3a'},{n:'Kinkerstraat',t:'prop',emoji:'🛵',c:'#3a0a2a'},
+  {n:'De Pijp',t:'prop',emoji:'🥐',c:'#3a0a2a'},{n:'Metrolijn',t:'rr',emoji:'🚇',c:'#1a1a3a'},
+  {n:'NDSM Loods',t:'prop',emoji:'🏭',c:'#3a2a0a'},{n:'Post',t:'chest',emoji:'📬',c:'#1a2a3a'},
+  {n:'Zuidas Tower',t:'prop',emoji:'🏢',c:'#3a2a0a'},{n:'Vondelpark',t:'prop',emoji:'🌳',c:'#3a2a0a'},
+  {n:'Gratis Park.',t:'free',emoji:'🚗',c:'#0a2a0a'},{n:'Herengracht',t:'prop',emoji:'🏰',c:'#4a0a0a'},
+  {n:'Kans',t:'chance',emoji:'🎲',c:'#2a2a1a'},{n:'Keizersgracht',t:'prop',emoji:'🏰',c:'#4a0a0a'},
+  {n:'Prinsengracht',t:'prop',emoji:'🏰',c:'#4a0a0a'},{n:'Buslijn',t:'rr',emoji:'🚌',c:'#1a1a3a'},
+  {n:'Museumplein',t:'prop',emoji:'🎨',c:'#3a3a0a'},{n:'Luxebelasting',t:'tax',emoji:'💸',c:'#3a1a1a'},
+  {n:'Oud-Zuid Laan',t:'prop',emoji:'🏡',c:'#3a3a0a'},{n:'Ga Naar Bak',t:'gotojail',emoji:'👮',c:'#3a0a0a'},
+  {n:'Apollolaan',t:'prop',emoji:'🌴',c:'#0a3a0a'},{n:'Post',t:'chest',emoji:'📬',c:'#1a2a3a'},
+  {n:'Buitenveldert',t:'prop',emoji:'🏘️',c:'#0a3a0a'},{n:'Kans',t:'chance',emoji:'🎲',c:'#2a2a1a'},
+  {n:'Amstelveen',t:'prop',emoji:'🏗️',c:'#0a3a0a'},{n:'Snelweg',t:'rr',emoji:'🚐',c:'#1a1a3a'},
+  {n:'Kans',t:'chance',emoji:'🎲',c:'#2a2a1a'},{n:'Leidseplein',t:'prop',emoji:'🌟',c:'#1a1a4a'},
+  {n:'Heffing',t:'tax',emoji:'🏛️',c:'#3a1a1a'},{n:'Rembrandtplein',t:'prop',emoji:'👑',c:'#1a1a4a'},
 ];
 
-const TOKENS = ['🚂','🎩','👟','🐕','🚗','⛵','🎲','🤑'];
-const TCOLORS = ['#FF6B6B','#4ECDC4','#FFE66D','#A8E6CF','#FF8B94','#B4F8C8','#FBE7C6','#A0C4FF'];
+const LEVEL_NAMES = ['Kaal','Kraakpand','Rijtjeshuis','Appartement','Villa','Mansion'];
+const LEVEL_EMOJI = ['🏚️','🏠','🏡','🏢','🏰','👑'];
+const TOKENS = ['🟥','🟦','🟨','🟩','🟪','🟧','⬜','🔴'];
+const PLAYER_COLORS = ['#FF6B6B','#4d96ff','#ffd93d','#6bcb77','#b44fff','#ff9f43','#aaa','#ff4757'];
+const COP_TOKEN = '👮';
+
+let monoAnimPos = {}; // pid -> displayed position (for animation)
+let monoAnimFrame = null;
+let monoLastState = null;
 
 const Mono = {
   render(state) {
     const area = document.getElementById('game-area');
     if (!area) return;
-    if (!state) { Mono.renderLobby(area); return; }
-    Mono.renderGame(area, state);
+
+    if (!state || !state.phase) { Mono.renderLobby(area); return; }
+    if (state.phase === 'gameover') { Mono.renderGameover(area, state); return; }
+
+    // Animate movement if positions changed
+    if (monoLastState) {
+      state.players.forEach(pid => {
+        const oldPos = monoLastState.pos?.[pid];
+        const newPos = state.pos?.[pid];
+        if (oldPos !== undefined && newPos !== undefined && oldPos !== newPos) {
+          Mono.animateMove(pid, oldPos, newPos, state, area);
+        }
+      });
+    }
+    monoLastState = state;
+
+    Mono.renderFull(area, state);
+  },
+
+  animateMove(pid, from, to, state, area) {
+    // Store animation target so renderFull uses animated position
+    monoAnimPos[pid] = from;
+    let cur = from;
+    const step = () => {
+      cur = (cur + 1) % 40;
+      monoAnimPos[pid] = cur;
+      Mono.updateBoardTokens(state);
+      if (cur !== to) requestAnimationFrame(step);
+      else { delete monoAnimPos[pid]; Mono.updateBoardTokens(state); }
+    };
+    requestAnimationFrame(step);
+  },
+
+  updateBoardTokens(state) {
+    // Update only the token cells without re-rendering everything
+    const cells = document.querySelectorAll('.mcell');
+    if (!cells.length) return;
+    cells.forEach((cell, i) => {
+      const tok = cell.querySelector('.mcell-tokens');
+      if (!tok) return;
+      tok.innerHTML = '';
+      state.players.forEach((pid, pi) => {
+        const displayPos = monoAnimPos[pid] !== undefined ? monoAnimPos[pid] : state.pos[pid];
+        if (displayPos === i) {
+          const isCop = pid === state.copId;
+          const el = document.createElement('span');
+          el.className = 'mtoken-sm';
+          el.style.cssText = `background:${isCop?'#ffd93d':PLAYER_COLORS[pi]};color:${isCop?'#111':'white'}`;
+          el.textContent = isCop ? '👮' : (myRoomState?.players?.find(p=>p.id===pid)?.name||'?').charAt(0).toUpperCase();
+          tok.appendChild(el);
+        }
+      });
+    });
   },
 
   renderLobby(area) {
     area.innerHTML = `
-      <div class="game-banner" style="background:linear-gradient(135deg,#1a0a2e,#2d1a5a)">
-        <div class="game-banner-title" style="color:white">🏦 Monopoly</div>
-        <div class="game-banner-sub">Vernietig je vriendschappen. Legaal.</div>
+      <div class="game-banner" style="background:linear-gradient(135deg,#0d1a0d,#1a2d0a)">
+        <div class="game-banner-title" style="color:#6bcb77">🏦 STRAATVARIANT</div>
+        <div class="game-banner-sub">Van Crack Steeg tot Rembrandtplein. Van kraakpand tot mansion.</div>
       </div>
-      <div class="info-box"><h3>Hoe speel je?</h3>
-        <p>Gooi dobbelstenen, beweeg over het bord, koop straten, vraag huur! Start met <strong>€1.500</strong>. Passeer GO → +€200. Maak je tegenstanders failliet!</p>
+      <div class="info-box">
+        <h3>Spelregels</h3>
+        <p>De <strong>laatste speler is altijd de AGENT 👮</strong>. Als de agent op jouw vakje landt, draait hij het rad — vrijuit, boete, of DE BAK. Land je op een betaald pand? Je kan <strong>DASHEN</strong> (30% kans op ontsnapping, anders betaal je dubbel). Koop panden en upgrade ze van Kraakpand tot <strong>MANSION 👑</strong>.</p>
       </div>
-      <div class="info-box"><h3>Spelers</h3>
-        ${(myRoomState?.players||[]).map((p,i)=>`<div style="padding:0.3rem 0">${TOKENS[i]||'👤'} ${esc(p.name)} — €1.500 ${p.isHost?'👑':''}</div>`).join('')}
+      <div class="info-box">
+        <h3>Spelers (laatste = Agent)</h3>
+        ${(myRoomState?.players||[]).map((p,i,arr) => `
+          <div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+            <span style="font-size:1.4rem">${i===arr.length-1 ? '👮' : TOKENS[i]||'●'}</span>
+            <span style="font-weight:800">${esc(p.name)}</span>
+            ${i===arr.length-1?'<span style="background:#ffd93d;color:#111;border-radius:20px;padding:0.1rem 0.6rem;font-size:0.75rem;font-weight:900">AGENT</span>':''}
+            ${p.id===myId?'<span style="color:var(--accent4);font-size:0.8rem">(jij)</span>':''}
+          </div>
+        `).join('')}
       </div>
       ${isHost() ? `
-        <button class="btn-start-game" style="background:linear-gradient(135deg,#4d1a99,#2d0a66)" onclick="App.startGame()">🎲 Start Spel!</button>
-        ${(myRoomState?.players?.length||0)<2?'<p class="warn">⚠️ Monopoly heeft minstens 2 spelers nodig!</p>':''}
-      ` : '<div class="waiting-txt">Wachten op host om te starten...</div>'}
+        <button class="btn-start-game" style="background:linear-gradient(135deg,#228b22,#0a4a0a)" onclick="App.startGame()">
+          🎲 Start Straatvariant!
+        </button>
+        ${(myRoomState?.players?.length||0)<2?'<p class="warn">⚠️ Minimaal 2 spelers nodig!</p>':''}
+      ` : '<div class="waiting-txt">Wachten op host...</div>'}
     `;
   },
 
-  renderGame(area, state) {
+  renderFull(area, state) {
     const isMyTurn = state.current === myId;
-    const myPos = state.pos?.[myId] || 0;
+    const isCop = myId === state.copId;
     const myMoney = state.money?.[myId] || 0;
-    const sq = BOARD[myPos];
-    const canBuy = state.rolled && sq && (sq.t==='prop'||sq.t==='rr'||sq.t==='util')
-      && !state.props?.[myPos] && myMoney >= (sq.p||9999);
-    const currentName = myRoomState?.players?.find(p=>p.id===state.current)?.name||'?';
+    const myPos = monoAnimPos[myId] !== undefined ? monoAnimPos[myId] : (state.pos?.[myId] || 0);
+    const sq = MONO_BOARD_CLIENT[myPos];
+    const myProp = state.props?.[myPos];
+    const canBuy = state.rolled && state.phase==='popup' && state.popup?.kind==='buy_card';
 
     area.innerHTML = `
+      <!-- TOP BAR -->
       <div class="mono-topbar">
-        ${state.dice ? `<span>🎲 ${state.dice[0]}+${state.dice[1]}=${state.dice[0]+state.dice[1]}</span>` : '<span>🎲 Geen worp</span>'}
-        ${isMyTurn ? '<span class="your-turn-pill">JOUW BEURT!</span>' : `<span>⏳ ${esc(currentName)} is aan de beurt</span>`}
-      </div>
-
-      <div class="mono-board-wrap">
-        <div class="mono-board">${Mono.renderBoard(state)}</div>
-      </div>
-
-      <div class="mono-seats">
-        ${(state.players||[]).map((pid,i)=>{
-          const p = myRoomState?.players?.find(pl=>pl.id===pid);
-          const money = state.money?.[pid]||0;
-          const pos = state.pos?.[pid]||0;
-          const inJail = state.jail?.[pid];
-          const bankrupt = state.bankrupt?.[pid];
-          const isCurrent = state.current===pid;
-          const owned = Object.values(state.props||{}).filter(o=>o===pid).length;
-          return `
-            <div class="mono-seat ${isCurrent?'current':''} ${bankrupt?'bankrupt':''}">
-              <div class="m-token-lg">${TOKENS[i]||'👤'}</div>
-              <div>
-                <div class="m-name">${esc(p?.name||'?')} ${pid===myId?'<span style="color:var(--accent4)">(jij)</span>':''}</div>
-                <div class="m-money" style="color:${money>0?'var(--accent3)':'var(--accent)'}">€${money}</div>
-                <div class="m-sub">${BOARD[pos]?.n||'?'} • ${owned} strd${inJail?' • 🔒 Gevangenis':''}${bankrupt?' • 💀 FAILLIET':''}</div>
-              </div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-
-      ${isMyTurn ? `
-        <div class="mono-sq-info">
-          <strong>Jij staat op:</strong> ${sq?.n||'?'}
-          ${sq?.p?` — €${sq.p}`:''}
-          ${(sq?.t==='prop'||sq?.t==='rr'||sq?.t==='util') ? `
-            <span class="sq-badge" style="background:${sq?.c||'#555'};color:${Mono.darkBg(sq?.c)?'white':'#111'}">
-              ${state.props?.[myPos] ? (state.props[myPos]===myId ? '✅ Van jou' : `💸 Huur: €${sq?.r||25}`) : '🔓 Te koop'}
-            </span>
-          ` : ''}
+        <div class="mono-tb-left">
+          ${state.dice ? `<span class="mono-dice">🎲 ${state.dice[0]}</span><span class="mono-dice">🎲 ${state.dice[1]}</span><span style="font-weight:800;margin-left:0.2rem">= ${state.dice[0]+state.dice[1]}</span>` : '<span style="color:#556">Nog geen worp</span>'}
         </div>
-        <div class="mono-actions">
-          ${!state.rolled ? `<button class="maction ma-roll" onclick="sendWS({type:'GAME_ACTION',action:'ROLL'})">🎲 Gooi Dobbelstenen</button>` : ''}
-          ${canBuy ? `<button class="maction ma-buy" onclick="sendWS({type:'GAME_ACTION',action:'BUY'})">🏠 Koop ${sq?.n} (€${sq?.p})</button>` : ''}
-          ${state.rolled ? `<button class="maction ma-end" onclick="sendWS({type:'GAME_ACTION',action:'END_TURN'})">➡️ Beurt Beëindigen</button>` : ''}
+        <div class="mono-tb-mid">
+          ${isMyTurn ? `<span class="your-turn-pill">${isCop?'👮 ':''}JOUW BEURT!</span>` : `<span style="color:#889">⏳ ${esc(monoGetName(state, state.current))} ${state.current===state.copId?'👮':''}</span>`}
         </div>
-      ` : ''}
+        <div class="mono-tb-right">
+          <span style="color:#6bcb77;font-weight:800">€${myMoney}</span>
+          ${state.freePass?.[myId]?'<span class="free-pass-badge">🗝️ Vrijpas</span>':''}
+        </div>
+      </div>
 
+      <!-- BOARD -->
+      <div class="mono-board-container">
+        <div class="mono-board" id="mono-board">
+          ${Mono.renderBoardHTML(state)}
+        </div>
+        <!-- Center info -->
+        <div class="mono-center">
+          <div class="mono-center-title">STRAAT<br>VARIANT</div>
+          <div class="mono-legend">
+            ${state.players.map((pid,i) => {
+              const p = myRoomState?.players?.find(pl=>pl.id===pid);
+              const isc = pid===state.copId;
+              return `<div class="mono-legend-row ${state.bankrupt?.[pid]?'bankrupt':''}">
+                <span class="mono-legend-tok" style="background:${isc?'#ffd93d':PLAYER_COLORS[i]};color:${isc?'#111':'white'}">${isc?'👮':(p?.name||'?').charAt(0).toUpperCase()}</span>
+                <span class="mono-legend-name">${esc(p?.name||'?')}</span>
+                <span class="mono-legend-money">€${state.money?.[pid]||0}</span>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- PROPERTIES I OWN (upgradeable) -->
+      ${Mono.renderMyProps(state)}
+
+      <!-- ACTIONS -->
+      ${isMyTurn && state.phase==='playing' ? Mono.renderActions(state) : ''}
+
+      <!-- LOG -->
       <div class="mono-log">
-        ${(state.log||[]).slice(0,10).map(l=>`<div class="log-line">📢 ${esc(l)}</div>`).join('')}
+        ${(state.log||[]).slice(0,8).map(l=>`<div class="log-line">${esc(l)}</div>`).join('')}
+      </div>
+
+      <!-- POPUP OVERLAY -->
+      ${state.popup ? Mono.renderPopup(state) : ''}
+      ${state.phase==='spinning' || state.phase==='spin_result' ? Mono.renderSpinWheel(state) : ''}
+    `;
+  },
+
+  renderBoardHTML(state) {
+    // 10x10 grid: corners at 0,10,20,30
+    // bottom row: 9→0 (indices 9,8,7,6,5,4,3,2,1,0) — displayed left to right
+    // We render 100 cells: row 0=top, row 9=bottom
+    // Actual board traversal: bottom-right=0, going counter-clockwise
+    // Grid position mapping:
+    //   row 9 (bottom): col 9=sq0, col8=sq1, ..., col0=sq9
+    //   col 0 (left):   row8=sq10, row7=sq11, ..., row0=sq19  (wait - row9 is bottom)
+    //   Actually: col0: row9=sq9's left neighbor... 
+    // Let me use the standard Monopoly layout:
+    //   Bottom row (row 9, left to right): sq9..sq0  → cols 0..9
+    //   Left col (col 0, bottom to top): sq10..sq19 → rows 8..0  (but row 9 col 0 = sq9, already done)
+    //   Wait, corners:  sq0=bottom-right, sq10=bottom-left, sq20=top-left, sq30=top-right
+    
+    const grid = Array(10).fill(null).map(()=>Array(10).fill(null));
+    // Bottom row (row 9): sq0..sq9 from right to left → col 9..0
+    for(let i=0;i<10;i++) grid[9][9-i] = i;
+    // Left col (col 0): sq10..sq19 from bottom to top → row 8..0
+    for(let i=0;i<10;i++) grid[8-i][0] = 10+i;
+    // Top row (row 0): sq20..sq29 from left to right → col 0..9
+    // col 0 is already sq19 handled, so sq20=col1? No:
+    // sq20 is top-left corner. In standard Monopoly top-left is "Free Parking".
+    for(let i=0;i<10;i++) grid[0][i] = 20+i;
+    // Right col (col 9): sq30..sq39 from top to bottom → row 1..9
+    // row 0 col 9 = sq29 already done
+    for(let i=0;i<9;i++) grid[1+i][9] = 30+i;
+
+    let html = '';
+    for(let r=0;r<10;r++) {
+      for(let c=0;c<10;c++) {
+        const sqIdx = grid[r][c];
+        if (sqIdx === null) { html += '<div class="mcell mcell-empty"></div>'; continue; }
+        const sq = MONO_BOARD_CLIENT[sqIdx];
+        const prop = state.props?.[sqIdx];
+        const ownerIdx = prop ? state.players.indexOf(prop.ownerId) : -1;
+        const isCopOwner = prop?.ownerId === state.copId;
+
+        // Who is here?
+        const here = state.players.filter(pid => {
+          const displayPos = monoAnimPos[pid] !== undefined ? monoAnimPos[pid] : state.pos[pid];
+          return displayPos === sqIdx;
+        });
+
+        html += `<div class="mcell mcell-${sq.t}" style="background:${sq.c||'#1a1a2e'}" data-idx="${sqIdx}" title="${sq.n}">`;
+        // Color band for owned property
+        if (prop && ownerIdx >= 0) {
+          html += `<div class="mcell-owner-band" style="background:${isCopOwner?'#ffd93d':PLAYER_COLORS[ownerIdx]}"></div>`;
+        }
+        html += `<div class="mcell-emoji">${sq.emoji||'?'}</div>`;
+        html += `<div class="mcell-name">${sq.n.split(' ')[0]}</div>`;
+        if (prop?.level > 0) html += `<div class="mcell-level">${LEVEL_EMOJI[prop.level]}</div>`;
+        html += `<div class="mcell-tokens">`;
+        here.forEach(pid => {
+          const pi = state.players.indexOf(pid);
+          const isc = pid===state.copId;
+          const p = myRoomState?.players?.find(pl=>pl.id===pid);
+          html += `<span class="mtoken-sm" style="background:${isc?'#ffd93d':PLAYER_COLORS[pi]};color:${isc?'#111':'white'}">${isc?'👮':(p?.name||'?').charAt(0).toUpperCase()}</span>`;
+        });
+        html += `</div></div>`;
+      }
+    }
+    return html;
+  },
+
+  renderMyProps(state) {
+    const myProps = Object.entries(state.props||{})
+      .filter(([,p]) => p.ownerId === myId)
+      .map(([idx, p]) => ({idx:parseInt(idx), ...p, sq: MONO_BOARD_CLIENT[parseInt(idx)]}));
+    if (!myProps.length) return '';
+    const upgCost = (sq) => Math.floor((sq.p||100)*0.6);
+    return `
+      <div class="mono-props">
+        <div class="mono-props-title">Jouw panden</div>
+        <div class="mono-props-grid">
+          ${myProps.map(({idx,level,sq}) => `
+            <div class="mono-prop-card" style="border-color:${sq.c||'#333'}55">
+              <div class="mpc-emoji">${sq.emoji}</div>
+              <div class="mpc-name">${sq.n}</div>
+              <div class="mpc-level">${LEVEL_EMOJI[level]} ${LEVEL_NAMES[level]}</div>
+              ${level < 5 && state.current===myId && !state.rolled ? `
+                <button class="mpc-upgrade" onclick="sendWS({type:'GAME_ACTION',action:'UPGRADE',sqIdx:${idx}})">
+                  ⬆️ €${upgCost(sq)}
+                </button>
+              ` : `<div class="mpc-rent">Huur: €${Mono.calcRent(idx,state)}</div>`}
+            </div>
+          `).join('')}
+        </div>
       </div>
     `;
   },
 
-  renderBoard(state) {
-    return BOARD.map((sq, i) => {
-      const owner = state.props?.[i];
-      const ownerIdx = owner ? (state.players||[]).indexOf(owner) : -1;
-      const here = (state.players||[]).filter(pid=>(state.pos?.[pid]||0)===i);
-      let bg = '#1a1a2e';
-      if (sq.t==='prop'&&sq.c) bg = sq.c+'22';
-      else if (sq.t==='go') bg = '#00330055';
-      else if (sq.t==='jail') bg = '#33220055';
-      else if (sq.t==='gotojail') bg = '#33000055';
-      else if (sq.t==='free') bg = '#00220055';
-      else if (sq.t==='chance') bg = '#2a1a0055';
-      else if (sq.t==='chest') bg = '#001a3355';
-      else if (sq.t==='rr') bg = '#11111155';
-      else if (sq.t==='tax') bg = '#1a000055';
-      return `
-        <div class="mcell" style="background:${bg}" title="${sq.n}">
-          <div class="mcell-name">${sq.n.split(' ')[0]}</div>
-          ${owner&&ownerIdx>=0?`<div class="mcell-owner" style="background:${TCOLORS[ownerIdx]}"></div>`:''}
-          <div class="mcell-tokens">
-            ${here.map(pid=>{const pi=(state.players||[]).indexOf(pid);return `<span class="mtoken-sm">${TOKENS[pi]||'●'}</span>`;}).join('')}
-          </div>
-        </div>
-      `;
-    }).join('');
+  calcRent(sqIdx, state) {
+    const sq = MONO_BOARD_CLIENT[sqIdx];
+    const prop = state.props?.[sqIdx];
+    if (!prop) return 0;
+    if (sq.t==='rr') {
+      const count = Object.entries(state.props||{}).filter(([i,p])=>MONO_BOARD_CLIENT[i]?.t==='rr'&&p.ownerId===prop.ownerId).length;
+      return 25*count;
+    }
+    if (sq.t==='util') return (state.lastDiceSum||7)*10;
+    const mults=[1,2,3.5,6,10,16];
+    return Math.round((sq.r||10)*(mults[prop.level]||1));
   },
 
-  darkBg(hex) {
-    if (!hex||hex.length<7) return true;
-    const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
-    return (r*0.299+g*0.587+b*0.114)<128;
+  renderActions(state) {
+    const isCop = myId===state.copId;
+    const inJail = state.jail?.[myId];
+    const hasFreePass = state.freePass?.[myId];
+    return `
+      <div class="mono-actions">
+        ${!state.rolled ? `
+          ${hasFreePass && inJail ? `<button class="maction ma-free" onclick="sendWS({type:'GAME_ACTION',action:'USE_FREE_PASS'})">🗝️ Gebruik Vrijpas</button>` : ''}
+          <button class="maction ma-roll" onclick="sendWS({type:'GAME_ACTION',action:'ROLL'})">
+            🎲 Gooi Dobbelstenen ${isCop?'👮':''}
+          </button>
+        ` : `
+          <button class="maction ma-end" onclick="sendWS({type:'GAME_ACTION',action:'END_TURN'})">
+            ➡️ Beurt Beëindigen
+          </button>
+        `}
+      </div>
+    `;
+  },
+
+  renderPopup(state) {
+    const pop = state.popup;
+    const isMyTurn = state.current===myId;
+    let inner = '';
+
+    if (pop.kind==='buy_card') {
+      const sq = pop.sq;
+      const canAfford = (state.money?.[myId]||0) >= (sq?.p||9999);
+      inner = `
+        <div class="popup-card popup-buy">
+          <div class="popup-emoji">${sq?.emoji||'🏠'}</div>
+          <div class="popup-title">${esc(sq?.n||'')}</div>
+          <div class="popup-desc">${esc(sq?.desc||'')}</div>
+          <div class="popup-price">💰 Koopprijs: <strong>€${sq?.p}</strong></div>
+          <div class="popup-rent">📋 Basishuur: <strong>€${sq?.r||25}</strong></div>
+          ${sq?.t==='prop'?`<div class="popup-upgrades">${LEVEL_EMOJI.map((e,i)=>`<span class="upg-dot ${pop.sq?`upg-${i}`:''}">${e}</span>`).join('')}</div>`:''}
+          ${isMyTurn ? `
+            <div class="popup-actions">
+              ${canAfford ? `<button class="pop-btn pop-buy" onclick="sendWS({type:'GAME_ACTION',action:'BUY'})">🏠 Kopen voor €${sq?.p}</button>` : `<div style="color:#ff6b6b;font-weight:700">⚠️ Te weinig geld!</div>`}
+              <button class="pop-btn pop-skip" onclick="sendWS({type:'GAME_ACTION',action:'CLOSE_POPUP'})">⏭️ Niet kopen</button>
+            </div>
+          ` : '<div class="popup-waiting">Wachten op speler...</div>'}
+        </div>`;
+    } else if (pop.kind==='rent_card' && state.phase==='dash') {
+      inner = `
+        <div class="popup-card popup-rent">
+          <div class="popup-emoji">${pop.sq?.emoji||'🏠'}</div>
+          <div class="popup-title">HUUR! ${esc(pop.sq?.n||'')}</div>
+          <div class="popup-desc">Eigenaar: <strong>${esc(pop.ownerName||'?')}</strong></div>
+          <div class="popup-price">💸 Te betalen: <strong>€${pop.rent}</strong></div>
+          ${isMyTurn ? `
+            <div class="popup-actions">
+              <button class="pop-btn pop-dash" onclick="sendWS({type:'GAME_ACTION',action:'DASH'})">🏃 DASH! <small>(30% kans)</small></button>
+              <button class="pop-btn pop-pay" onclick="sendWS({type:'GAME_ACTION',action:'PAY_RENT'})">💸 Betaal €${pop.rent}</button>
+            </div>
+            <div style="color:#aaa;font-size:0.75rem;text-align:center;margin-top:0.4rem">Dash mislukt = €${pop.rent*2} (dubbel)</div>
+          ` : '<div class="popup-waiting">Wachten op speler...</div>'}
+        </div>`;
+    } else if (pop.kind==='chance_card') {
+      inner = `
+        <div class="popup-card popup-chance">
+          <div class="popup-emoji">🎲</div>
+          <div class="popup-title">KANS</div>
+          <div class="popup-text">${esc(pop.card?.txt||'')}</div>
+          ${isMyTurn ? `<button class="pop-btn pop-ok" onclick="sendWS({type:'GAME_ACTION',action:'CLOSE_POPUP'})">✓ OK</button>` : '<div class="popup-waiting">Wachten...</div>'}
+        </div>`;
+    } else if (pop.kind==='chest_card') {
+      inner = `
+        <div class="popup-card popup-chest">
+          <div class="popup-emoji">📬</div>
+          <div class="popup-title">POST</div>
+          <div class="popup-text">${esc(pop.card?.txt||'')}</div>
+          ${isMyTurn ? `<button class="pop-btn pop-ok" onclick="sendWS({type:'GAME_ACTION',action:'CLOSE_POPUP'})">✓ OK</button>` : '<div class="popup-waiting">Wachten...</div>'}
+        </div>`;
+    } else if (pop.kind==='jail_card') {
+      inner = `
+        <div class="popup-card popup-jail">
+          <div class="popup-emoji">🔒</div>
+          <div class="popup-title">GEVANGENIS!</div>
+          <div class="popup-text">Zonder €400. Direct naar de bak. Gooi dubbel om vrij te komen (max 3 pogingen, daarna €150 borgtocht).</div>
+          ${isMyTurn ? `<button class="pop-btn pop-ok" onclick="sendWS({type:'GAME_ACTION',action:'CLOSE_POPUP'})">😤 Oké dan</button>` : '<div class="popup-waiting">Wachten...</div>'}
+        </div>`;
+    } else if (pop.kind==='tax_card') {
+      inner = `
+        <div class="popup-card popup-tax">
+          <div class="popup-emoji">${pop.sq?.emoji||'💸'}</div>
+          <div class="popup-title">${esc(pop.sq?.n||'BELASTING')}</div>
+          <div class="popup-text">${esc(pop.sq?.desc||'')} <strong>-€${pop.sq?.a||0}</strong></div>
+          ${isMyTurn ? `<button class="pop-btn pop-ok" onclick="sendWS({type:'GAME_ACTION',action:'CLOSE_POPUP'})">😭 OK</button>` : '<div class="popup-waiting">Wachten...</div>'}
+        </div>`;
+    } else if (pop.kind==='spin_intro') {
+      inner = `
+        <div class="popup-card popup-spin-intro">
+          <div class="popup-emoji">👮</div>
+          <div class="popup-title">AGENT STAAT NAAST JE!</div>
+          <div class="popup-text">De agent staat op hetzelfde vakje als <strong>${(pop.victims||[]).map(v=>esc(v)).join(' & ')}</strong>! Draai het rad!</div>
+          ${myId===state.current ? `<button class="pop-btn pop-spin" onclick="sendWS({type:'GAME_ACTION',action:'SPIN_WHEEL'})">🎡 DRAAI HET RAD!</button>` : '<div class="popup-waiting">Agent draait het rad...</div>'}
+        </div>`;
+    }
+
+    return inner ? `<div class="mono-overlay" onclick="void(0)">${inner}</div>` : '';
+  },
+
+  renderSpinWheel(state) {
+    if (state.phase==='spinning' && !state.popup?.kind?.includes('spin')) return ''; // already shown via popup
+    if (state.phase!=='spin_result' || !state.spinResult) return '';
+    const r = state.spinResult;
+    const typeColors = {free:'#6bcb77', fine:'#ff6b6b', jail:'#ff0000', chase:'#ffa500'};
+    return `
+      <div class="mono-overlay">
+        <div class="popup-card popup-spin-result" style="border-color:${typeColors[r.type]||'#fff'}">
+          <div class="spin-result-icon">${r.type==='free'?'🎉':r.type==='jail'?'🔒':r.type==='chase'?'🏃':'💸'}</div>
+          <div class="popup-title" style="color:${typeColors[r.type]||'#fff'}">${esc(r.txt||'')}</div>
+          ${myId===state.current ? `<button class="pop-btn pop-ok" onclick="sendWS({type:'GAME_ACTION',action:'CLOSE_SPIN'})">OK</button>` : '<div class="popup-waiting">Wachten op agent...</div>'}
+        </div>
+      </div>`;
+  },
+
+  renderGameover(area, state) {
+    const winner = myRoomState?.players?.find(p=>p.id===state.winner);
+    area.innerHTML = `
+      <div style="text-align:center;padding:2rem">
+        <div style="font-size:4rem">🏆</div>
+        <h2 style="font-family:Bangers,cursive;font-size:2.5rem;letter-spacing:3px;color:#ffd93d">${esc(winner?.name||'?')} WINT!</h2>
+        <p style="color:#8888aa;margin:0.5rem 0 1.5rem">De rijkste van de straat.</p>
+        ${isHost() ? `<button class="btn-start-game" onclick="App.startGame()">🔄 Nieuw Spel</button>` : '<div class="waiting-txt">Wachten op host...</div>'}
+      </div>
+      <div style="margin-top:1rem">
+        ${state.players.map((pid,i) => {
+          const p = myRoomState?.players?.find(pl=>pl.id===pid);
+          const money = state.money?.[pid]||0;
+          return `<div class="chip-row"><span>${TOKENS[i]||'●'} ${esc(p?.name||'?')}</span><span style="color:#6bcb77;font-weight:800">€${money}</span></div>`;
+        }).join('')}
+      </div>
+    `;
   },
 };
 
+function monoGetName(state, pid) {
+  return myRoomState?.players?.find(p=>p.id===pid)?.name || '?';
+}
 </script>
+
 </body>
 </html>

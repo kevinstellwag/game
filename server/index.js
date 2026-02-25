@@ -419,7 +419,7 @@ const MONO_BOARD = [
   {n:'Metrolijn',      t:'rr',      emoji:'🚇', p:200, r:25, desc:'4 lijnen = rijkdom.'},
   {n:'NDSM Loods',     t:'prop',    emoji:'🏭', c:'#f4a460', p:240, r:34, desc:'Hipsters inbegrepen.'},
   {n:'Post',           t:'chest',   emoji:'📬', desc:'Burenruzie post.'},
-  {n:'Zuidas Tower',   t:'prop',    emoji:'🏢', c:'#f4a460', p:260, r:38, desc:'Pakken en BMW's.'},
+  {n:'Zuidas Tower',   t:'prop',    emoji:'🏢', c:'#f4a460', p:260, r:38, desc:'Pakken en BMWs.'},
   {n:'Vondelpark',     t:'prop',    emoji:'🌳', c:'#f4a460', p:280, r:42, desc:'Joggers én junkies.'},
   // idx 20-29: top row, left to right
   {n:'Gratis Parkeren',t:'free',    emoji:'🚗', desc:'Niets! Geniet ervan.'},
@@ -433,7 +433,7 @@ const MONO_BOARD = [
   {n:'Oud-Zuid Laan',  t:'prop',    emoji:'🏡', c:'#ccbb00', p:380, r:76, desc:'Bomen, stilte, geld.'},
   {n:'Ga Naar Bak',    t:'gotojail',emoji:'👮', desc:'Geen €400. Direct naar bak.'},
   // idx 30-39: right column, top to bottom
-  {n:'Apollolaan',     t:'prop',    emoji:'🌴', c:'#228b22', p:400, r:86, desc:'Celebrities en villa's.'},
+  {n:'Apollolaan',     t:'prop',    emoji:'🌴', c:'#228b22', p:400, r:86, desc:'Celebrities en villas.'},
   {n:'Post',           t:'chest',   emoji:'📬', desc:'Burenruzie post.'},
   {n:'Buitenveldert',  t:'prop',    emoji:'🏘️', c:'#228b22', p:420, r:94, desc:'Rustig. Te rustig.'},
   {n:'Kans',           t:'chance',  emoji:'🎲', desc:'Druk op je geluk.'},

@@ -221,6 +221,7 @@ function cahBroadcast(room) {
         lastWinner: gs.lastWinner,
         lastWinnerName: room.clients.find(cl=>cl.id===gs.lastWinner)?.name || '?',
         lastWinningCard: gs.lastWinningCard,
+        lastBlackCard: gs.lastBlackCard,
         myHand: gs.hands[c.id] || [],
         hasSubmitted: !!gs.submissions[c.id],
         mySubmission: gs.submissions[c.id] || null,
@@ -244,7 +245,7 @@ function startCAH(room) {
     phase:'playing', round:1, czarIndex:0, czar:players[0],
     currentBlack: bDeck[0], blackDeck: bDeck.slice(1), whiteDeck: wDeck.slice(wi),
     hands, submissions:{}, scores: Object.fromEntries(players.map(p=>[p,0])),
-    winner:null, lastWinner:null, lastWinningCard:null,
+    winner:null, lastWinner:null, lastWinningCard:null, lastBlackCard:null,
   };
   room.phase = 'ingame';
   cahBroadcast(room);
@@ -275,7 +276,7 @@ function handleCAH(room, clientId, ws, msg) {
     if (!winnerId) return;
     gs.scores[winnerId]=(gs.scores[winnerId]||0)+1;
     room.clients.forEach(c=>{c.score=gs.scores[c.id]||0;});
-    gs.lastWinner=winnerId; gs.lastWinningCard=msg.card; gs.phase='scores';
+    gs.lastWinner=winnerId; gs.lastWinningCard=msg.card; gs.lastBlackCard=gs.currentBlack; gs.phase='scores';
     if (gs.scores[winnerId]>=(room.settings.maxPoints||7)) gs.winner=winnerId;
     cahBroadcast(room); return;
   }

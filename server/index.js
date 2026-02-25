@@ -396,93 +396,481 @@ function handlePoker(room, clientId, ws, msg) {
   }
 }
 
-// ==================== MONOPOLY ====================
-const BOARD=[
-  {n:'GO',t:'go'},{n:'Mediterranean',t:'prop',c:'#8B4513',p:60,r:2},{n:'Community Chest',t:'chest'},
-  {n:'Baltic',t:'prop',c:'#8B4513',p:60,r:4},{n:'Income Tax',t:'tax',a:200},
-  {n:'Reading RR',t:'rr',p:200,r:25},{n:'Oriental',t:'prop',c:'#87CEEB',p:100,r:6},
-  {n:'Chance',t:'chance'},{n:'Vermont',t:'prop',c:'#87CEEB',p:100,r:6},
-  {n:'Connecticut',t:'prop',c:'#87CEEB',p:120,r:8},{n:'Jail',t:'jail'},
-  {n:'St. Charles',t:'prop',c:'#FF69B4',p:140,r:10},{n:'Electric Co.',t:'util',p:150,r:0},
-  {n:'States',t:'prop',c:'#FF69B4',p:140,r:10},{n:'Virginia',t:'prop',c:'#FF69B4',p:160,r:12},
-  {n:'Pennsylvania RR',t:'rr',p:200,r:25},{n:'St. James',t:'prop',c:'#FFA500',p:180,r:14},
-  {n:'Community Chest',t:'chest'},{n:'Tennessee',t:'prop',c:'#FFA500',p:180,r:14},
-  {n:'New York',t:'prop',c:'#FFA500',p:200,r:16},{n:'Free Parking',t:'free'},
-  {n:'Kentucky',t:'prop',c:'#e00',p:220,r:18},{n:'Chance',t:'chance'},
-  {n:'Indiana',t:'prop',c:'#e00',p:220,r:18},{n:'Illinois',t:'prop',c:'#e00',p:240,r:20},
-  {n:'B&O RR',t:'rr',p:200,r:25},{n:'Atlantic',t:'prop',c:'#FFD700',p:260,r:22},
-  {n:'Ventnor',t:'prop',c:'#FFD700',p:260,r:22},{n:'Water Works',t:'util',p:150,r:0},
-  {n:'Marvin Gardens',t:'prop',c:'#FFD700',p:280,r:24},{n:'Go To Jail',t:'gotojail'},
-  {n:'Pacific',t:'prop',c:'#0a0',p:300,r:26},{n:'N. Carolina',t:'prop',c:'#0a0',p:300,r:26},
-  {n:'Community Chest',t:'chest'},{n:'Pennsylvania',t:'prop',c:'#0a0',p:320,r:28},
-  {n:'Short Line RR',t:'rr',p:200,r:25},{n:'Chance',t:'chance'},
-  {n:'Park Place',t:'prop',c:'#4444ff',p:350,r:35},{n:'Luxury Tax',t:'tax',a:100},
-  {n:'Boardwalk',t:'prop',c:'#4444ff',p:400,r:50}
+// ==================== MONOPOLY: STRAAT VARIANT ====================
+
+const MONO_BOARD = [
+  // idx 0-9: bottom row, right to left (start bottom-right)
+  {n:'START',          t:'go',      emoji:'💰', desc:'Passeer hier voor €400!'},
+  {n:'Crack Steeg',    t:'prop',    emoji:'🏚️', c:'#7B3F00', p:80,  r:8,  desc:'1 kamer. Veel ratten.'},
+  {n:'Kans',           t:'chance',  emoji:'🎲', desc:'Druk op je geluk.'},
+  {n:'Jordaan Slop',   t:'prop',    emoji:'🏚️', c:'#7B3F00', p:100, r:12, desc:'Gezellig als je dronken bent.'},
+  {n:'Energieheffing', t:'tax',     emoji:'⚡', a:150, desc:'Overheid wil geld.'},
+  {n:'Tramlijn 9',     t:'rr',      emoji:'🚋', p:200, r:25, desc:'4 lijnen = rijkdom.'},
+  {n:'AH Straat',      t:'prop',    emoji:'🛒', c:'#4fa8c5', p:120, r:14, desc:'Bonusbroodjes inbegrepen.'},
+  {n:'Kans',           t:'chance',  emoji:'🎲', desc:'Druk op je geluk.'},
+  {n:'Wallen Wijk',    t:'prop',    emoji:'🪟', c:'#4fa8c5', p:140, r:16, desc:'Toeristen graag.'},
+  {n:'Coffeeshop Corner', t:'prop', emoji:'☕', c:'#4fa8c5', p:160, r:20, desc:'Hoge huur, hoge bewoners.'},
+  // idx 10-19: left column, bottom to top
+  {n:'Gevangenis',     t:'jail',    emoji:'🔒', desc:'Gewoon op bezoek... toch?'},
+  {n:'Kattenburgh',    t:'prop',    emoji:'🐱', c:'#e75480', p:180, r:22, desc:'Meer katten dan mensen.'},
+  {n:'Waterleiding',   t:'util',    emoji:'💧', p:150, r:0,  desc:'Huur = dobbelsteen × €10.'},
+  {n:'Kinkerstraat',   t:'prop',    emoji:'🛵', c:'#e75480', p:200, r:26, desc:'Scooters overal.'},
+  {n:'De Pijp',        t:'prop',    emoji:'🥐', c:'#e75480', p:220, r:30, desc:'Avocadotoast €14.'},
+  {n:'Metrolijn',      t:'rr',      emoji:'🚇', p:200, r:25, desc:'4 lijnen = rijkdom.'},
+  {n:'NDSM Loods',     t:'prop',    emoji:'🏭', c:'#f4a460', p:240, r:34, desc:'Hipsters inbegrepen.'},
+  {n:'Post',           t:'chest',   emoji:'📬', desc:'Burenruzie post.'},
+  {n:'Zuidas Tower',   t:'prop',    emoji:'🏢', c:'#f4a460', p:260, r:38, desc:'Pakken en BMW's.'},
+  {n:'Vondelpark',     t:'prop',    emoji:'🌳', c:'#f4a460', p:280, r:42, desc:'Joggers én junkies.'},
+  // idx 20-29: top row, left to right
+  {n:'Gratis Parkeren',t:'free',    emoji:'🚗', desc:'Niets! Geniet ervan.'},
+  {n:'Herengracht',    t:'prop',    emoji:'🏰', c:'#cc2200', p:300, r:48, desc:'Grachtenpand. Steil.'},
+  {n:'Kans',           t:'chance',  emoji:'🎲', desc:'Druk op je geluk.'},
+  {n:'Keizersgracht',  t:'prop',    emoji:'🏰', c:'#cc2200', p:320, r:54, desc:'Nog steiler.'},
+  {n:'Prinsengracht',  t:'prop',    emoji:'🏰', c:'#cc2200', p:340, r:60, desc:'Anne Frank was hier.'},
+  {n:'Buslijn',        t:'rr',      emoji:'🚌', p:200, r:25, desc:'4 lijnen = rijkdom.'},
+  {n:'Museumplein',    t:'prop',    emoji:'🎨', c:'#ccbb00', p:360, r:68, desc:'Toeristen betalen goed.'},
+  {n:'Luxebelasting',  t:'tax',     emoji:'💸', a:200, desc:'Voor de rijken. Dat ben jij.'},
+  {n:'Oud-Zuid Laan',  t:'prop',    emoji:'🏡', c:'#ccbb00', p:380, r:76, desc:'Bomen, stilte, geld.'},
+  {n:'Ga Naar Bak',    t:'gotojail',emoji:'👮', desc:'Geen €400. Direct naar bak.'},
+  // idx 30-39: right column, top to bottom
+  {n:'Apollolaan',     t:'prop',    emoji:'🌴', c:'#228b22', p:400, r:86, desc:'Celebrities en villa's.'},
+  {n:'Post',           t:'chest',   emoji:'📬', desc:'Burenruzie post.'},
+  {n:'Buitenveldert',  t:'prop',    emoji:'🏘️', c:'#228b22', p:420, r:94, desc:'Rustig. Te rustig.'},
+  {n:'Kans',           t:'chance',  emoji:'🎲', desc:'Druk op je geluk.'},
+  {n:'Amstelveen Mega',t:'prop',    emoji:'🏗️', c:'#228b22', p:440, r:100, desc:'Mega-pand staat er al.'},
+  {n:'Snelweg',        t:'rr',      emoji:'🚐', p:200, r:25, desc:'4 lijnen = rijkdom.'},
+  {n:'Kans',           t:'chance',  emoji:'🎲', desc:'Druk op je geluk.'},
+  {n:'Leidseplein Ph', t:'prop',    emoji:'🌟', c:'#3333cc', p:480, r:120, desc:'Uitzicht over de stad.'},
+  {n:'Heffing',        t:'tax',     emoji:'🏛️', a:100, desc:'Belasting. Omdat.'},
+  {n:'Rembrandtplein', t:'prop',    emoji:'👑', c:'#3333cc', p:500, r:150, desc:'Het duurste. Ouch.'},
 ];
 
+const MONO_LEVEL_NAMES = ['Kaal','Kraakpand','Rijtjeshuis','Appartement','Villa','Mansion'];
+const MONO_LEVEL_EMOJI = ['🏚️','🏠','🏡','🏢','🏰','👑'];
+
+// Upgrade cost = 60% of purchase price
+function monoUpgradeCost(sq) { return Math.floor((sq.p||100) * 0.6); }
+
+// Rent based on level
+function monoCalcRent(sqIdx, gs) {
+  const sq = MONO_BOARD[sqIdx];
+  const prop = gs.props[sqIdx];
+  if (!prop) return 0;
+  if (sq.t === 'rr') {
+    const owner = prop.ownerId;
+    const count = Object.entries(gs.props).filter(([i,p]) => MONO_BOARD[i].t==='rr' && p.ownerId===owner).length;
+    return 25 * count;
+  }
+  if (sq.t === 'util') {
+    return (gs.lastDiceSum||7) * 10;
+  }
+  const mults = [1, 2, 3.5, 6, 10, 16];
+  return Math.round((sq.r||10) * (mults[prop.level]||1));
+}
+
+const MONO_CHANCE = [
+  {txt:'Je wint een weddenschap! 🎉', eff:{t:'money', v:200}},
+  {txt:'Belastingteruggave! 💵', eff:{t:'money', v:150}},
+  {txt:'Oom Henk is dood. Je erft €300 🪦', eff:{t:'money', v:300}},
+  {txt:'Parkeerboete. -€100 🚔', eff:{t:'money', v:-100}},
+  {txt:'Ziekenhuisrekening. -€200 🏥', eff:{t:'money', v:-200}},
+  {txt:'Loterij! +€500 🎰', eff:{t:'money', v:500}},
+  {txt:'Terug naar START. Pak €400! 💰', eff:{t:'goto', pos:0, bonus:400}},
+  {txt:'Rechtstreeks naar de gevangenis 🔒', eff:{t:'jail'}},
+  {txt:'Vrijlatingspas! Bewaar voor later 🗝️', eff:{t:'freepass'}},
+  {txt:'Iedereen geeft jou €50! 🤑', eff:{t:'collect', v:50}},
+  {txt:'Je trakteert iedereen. -€40 per persoon 🍺', eff:{t:'payall', v:40}},
+  {txt:'Reparaties! -€40 per pand dat je hebt 🔧', eff:{t:'perprop', v:40}},
+];
+
+const MONO_CHEST = [
+  {txt:'Rekening van de verhuurder. -€150 📄', eff:{t:'money', v:-150}},
+  {txt:'Buren klagen. -€75 😤', eff:{t:'money', v:-75}},
+  {txt:'Je verkoopt je Vespa. +€120 🛵', eff:{t:'money', v:120}},
+  {txt:'Bonus van de baas! +€250 💼', eff:{t:'money', v:250}},
+  {txt:'Gewoon de bak in. Nu. 🔒', eff:{t:'jail'}},
+  {txt:'Buren betalen jou elk €30 🏘️', eff:{t:'collect', v:30}},
+  {txt:'Gemeentesubsidie! +€100 🏛️', eff:{t:'money', v:100}},
+  {txt:'Waterleiding gesprongen. -€180 💧', eff:{t:'money', v:-180}},
+  {txt:'Gewonnen bij de rechtbank! +€200 ⚖️', eff:{t:'money', v:200}},
+];
+
+const MONO_SPIN = [
+  {txt:'🎉 VRIJUIT! Agent had zijn donut.', type:'free',  prob:0.28},
+  {txt:'💸 Boete €75. Betaal de agent.', type:'fine',  v:75,  prob:0.22},
+  {txt:'💸 Boete €150. Pech!', type:'fine',  v:150, prob:0.18},
+  {txt:'💸 Boete €300. Zware dag.', type:'fine',  v:300, prob:0.10},
+  {txt:'🔒 GEARRESTEERD! Naar de gevangenis!', type:'jail', prob:0.12},
+  {txt:'🏃 ACHTERVOLGING! 3 stappen terug.', type:'chase',prob:0.10},
+];
+
+function monoSpin() {
+  const r = Math.random();
+  let acc = 0;
+  for (const s of MONO_SPIN) { acc += s.prob; if (r < acc) return s; }
+  return MONO_SPIN[0];
+}
+
 function monoBroadcast(room) {
-  bcast(room.code, { type:'GAME_STATE', game:'monopoly', roomState:roomState(room.code), state:room.gameState });
-  const host = room.clients.find(c=>c.isHost);
-  if (host) send(host.ws, { type:'GAME_STATE', game:'monopoly', roomState:roomState(room.code), state:room.gameState });
+  const rs = roomState(room.code);
+  room.clients.forEach(c => send(c.ws, {type:'GAME_STATE', game:'monopoly', roomState:rs, state:room.gameState}));
+}
+
+function monoApplyCard(room, pid, card) {
+  const gs = room.gameState;
+  const name = room.clients.find(c=>c.id===pid)?.name||'?';
+  const eff = card.eff;
+  if (eff.t==='money') {
+    gs.money[pid] = (gs.money[pid]||0) + eff.v;
+  } else if (eff.t==='goto') {
+    gs.pos[pid] = eff.pos||0;
+    if (eff.bonus) gs.money[pid] = (gs.money[pid]||0) + eff.bonus;
+  } else if (eff.t==='jail') {
+    gs.pos[pid] = 10; gs.jail[pid] = true; gs.jailTurns[pid] = 0;
+  } else if (eff.t==='freepass') {
+    gs.freePass[pid] = true;
+  } else if (eff.t==='collect') {
+    const others = gs.players.filter(p=>p!==pid&&!gs.bankrupt[p]);
+    others.forEach(p => { gs.money[p] = (gs.money[p]||0) - eff.v; });
+    gs.money[pid] = (gs.money[pid]||0) + eff.v * others.length;
+  } else if (eff.t==='payall') {
+    const others = gs.players.filter(p=>p!==pid&&!gs.bankrupt[p]);
+    others.forEach(p => { gs.money[p] = (gs.money[p]||0) + eff.v; });
+    gs.money[pid] = (gs.money[pid]||0) - eff.v * others.length;
+  } else if (eff.t==='perprop') {
+    const count = Object.values(gs.props).filter(p=>p.ownerId===pid).length;
+    gs.money[pid] = (gs.money[pid]||0) - eff.v * count;
+  }
+  gs.log.unshift(`${name}: ${card.txt}`);
+  if ((gs.money[pid]||0) <= 0 && !gs.bankrupt[pid]) {
+    gs.bankrupt[pid] = true; gs.money[pid] = 0;
+    gs.log.unshift(`💀 ${name} is FAILLIET!`);
+  }
+}
+
+function monoDrawCard(gs, type) {
+  if (type === 'chance') {
+    if (!gs.chanceDeck.length) gs.chanceDeck = monoShufArr([...Array(MONO_CHANCE.length).keys()]);
+    return MONO_CHANCE[gs.chanceDeck.pop()];
+  } else {
+    if (!gs.chestDeck.length) gs.chestDeck = monoShufArr([...Array(MONO_CHEST.length).keys()]);
+    return MONO_CHEST[gs.chestDeck.pop()];
+  }
+}
+
+function monoShufArr(a) {
+  const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;
+}
+
+function monoCheckBankruptcy(gs, pid) {
+  if ((gs.money[pid]||0) <= 0 && !gs.bankrupt[pid]) {
+    gs.bankrupt[pid] = true; gs.money[pid] = 0;
+    return true;
+  }
+  return false;
 }
 
 function startMonopoly(room) {
-  const players=room.clients.map(c=>c.id);
-  room.gameState={
-    players,
-    pos:Object.fromEntries(players.map(p=>[p,0])),
-    money:Object.fromEntries(players.map(p=>[p,1500])),
-    jail:Object.fromEntries(players.map(p=>[p,false])),
-    props:{}, bankrupt:{},
-    currentIdx:0, current:players[0],
-    dice:null, rolled:false,
-    log:['Spel gestart! Gooi de dobbelstenen.'],
+  const players = room.clients.map(c=>c.id);
+  // NPC cop: fake player 'cop' appended at end of player list
+  const copId = 'cop';
+  const allPlayers = [...players, copId];
+  room.gameState = {
+    players: allPlayers, copId,
+    realPlayers: players,
+    pos:       Object.fromEntries(allPlayers.map(p=>[p,0])),
+    money:     Object.fromEntries(allPlayers.map(p=>[p,0])), // cop has no money
+    jail:      Object.fromEntries(allPlayers.map(p=>[p,false])),
+    jailTurns: Object.fromEntries(allPlayers.map(p=>[p,0])),
+    freePass:  Object.fromEntries(allPlayers.map(p=>[p,false])),
+    props: {},
+    bankrupt: {},
+    currentIdx: 0,
+    current: allPlayers[0],
+    dice: null,
+    lastDiceSum: 0,
+    rolled: false,
+    phase: 'playing',
+    popup: null,
+    spinResult: null,
+    log: ['🎮 Spel gestart! Pas op voor agent 👮 die na elke ronde rondrijdt!'],
+    chanceDeck: monoShufArr([...Array(MONO_CHANCE.length).keys()]),
+    chestDeck:  monoShufArr([...Array(MONO_CHEST.length).keys()]),
   };
-  room.phase='ingame';
+  room.phase = 'ingame';
+  monoBroadcast(room);
+}
+
+// NPC cop takes his turn automatically after all real players have gone
+function monoCopTurn(room) {
+  const gs = room.gameState;
+  const d1 = Math.ceil(Math.random()*6), d2 = Math.ceil(Math.random()*6);
+  gs.dice = [d1, d2]; gs.lastDiceSum = d1+d2;
+  const old = gs.pos['cop'];
+  gs.pos['cop'] = (old + d1 + d2) % 40;
+  const newPos = gs.pos['cop'];
+  const sq = MONO_BOARD[newPos];
+  gs.log.unshift(`👮 Agent rijdt ${d1}+${d2}=${d1+d2} vakjes → ${sq.emoji} ${sq.n}`);
+
+  // Check if cop landed on same square as any real player
+  const victims = gs.realPlayers.filter(p => !gs.bankrupt[p] && gs.pos[p] === newPos);
+  if (victims.length > 0) {
+    gs.spinVictims = victims;
+    gs.phase = 'spinning';
+    gs.popup = {
+      kind: 'spin_intro',
+      victims: victims.map(v => room.clients.find(c=>c.id===v)?.name||'?')
+    };
+    gs.log.unshift(`👮 Agent staat op hetzelfde vak als ${gs.popup.victims.join(', ')}! RAD DRAAIEN!`);
+    monoBroadcast(room);
+    return; // spin_wheel action from human player will continue the turn
+  }
+
+  // Cop just passes through — end cop turn, go to next real player
+  monoCopDone(room);
+}
+
+function monoCopDone(room) {
+  const gs = room.gameState;
+  gs.dice = null; gs.rolled = false; gs.phase = 'playing'; gs.popup = null; gs.spinResult = null;
+  // Find first non-bankrupt real player
+  let ni = 0;
+  let guard = 0;
+  while (gs.bankrupt[gs.realPlayers[ni]] && guard++ < gs.realPlayers.length) ni = (ni+1) % gs.realPlayers.length;
+  gs.currentIdx = ni;
+  gs.current = gs.realPlayers[ni];
+  const nextName = room.clients.find(c=>c.id===gs.current)?.name||'?';
+  gs.log.unshift(`${nextName} is aan de beurt.`);
+  monoBroadcast(room);
+}
+
+function monoEndTurn(room) {
+  const gs = room.gameState;
+  gs.rolled = false; gs.dice = null; gs.phase = 'playing'; gs.popup = null; gs.spinResult = null;
+
+  // Check win condition: only 1 non-bankrupt real player left
+  const alive = gs.realPlayers.filter(p => !gs.bankrupt[p]);
+  if (alive.length <= 1) {
+    gs.winner = alive[0] || gs.realPlayers[0];
+    gs.phase = 'gameover';
+    gs.log.unshift('🏆 ' + (room.clients.find(c=>c.id===gs.winner)?.name||'?') + ' WINT HET SPEL!');
+    monoBroadcast(room); return;
+  }
+
+  // Find next real player
+  const curRealIdx = gs.realPlayers.indexOf(gs.current);
+  let ni = (curRealIdx + 1) % gs.realPlayers.length;
+  let guard = 0;
+  while (gs.bankrupt[gs.realPlayers[ni]] && guard++ < gs.realPlayers.length) ni = (ni+1) % gs.realPlayers.length;
+
+  // If we wrapped around (new round), cop goes first
+  if (ni <= curRealIdx && curRealIdx !== -1) {
+    gs.log.unshift('👮 Nieuwe ronde! Agent rijdt zijn ronde...');
+    gs.current = 'cop';
+    gs.currentIdx = gs.realPlayers.length; // cop index
+    monoBroadcast(room);
+    // Auto-execute cop turn after short delay (500ms for suspense)
+    setTimeout(() => {
+      if (room.gameState && room.gameState.current === 'cop') {
+        monoCopTurn(room);
+      }
+    }, 1500);
+    return;
+  }
+
+  gs.current = gs.realPlayers[ni];
+  gs.currentIdx = ni;
+  const nextName = room.clients.find(c=>c.id===gs.current)?.name||'?';
+  gs.log.unshift(`${nextName} is aan de beurt.`);
   monoBroadcast(room);
 }
 
 function handleMonopoly(room, clientId, ws, msg) {
-  const client=room.clients.find(c=>c.id===clientId);
+  const client = room.clients.find(c=>c.id===clientId);
   if (msg.action==='START_GAME') { if(client?.isHost) startMonopoly(room); return; }
-  const gs=room.gameState; if(!gs) return;
-  if (gs.current!==clientId) return;
-  const name=client?.name||'?';
-  if (msg.action==='ROLL'&&!gs.rolled) {
+  const gs = room.gameState; if (!gs) return;
+  // Only allow actions from current player (cop is NPC so nobody can act as cop)
+  if (gs.current !== clientId) return;
+  const name = client?.name||'?';
+
+  // ---- ROLL ----
+  if (msg.action==='ROLL' && !gs.rolled) {
     const d1=Math.ceil(Math.random()*6), d2=Math.ceil(Math.random()*6);
-    gs.dice=[d1,d2]; gs.rolled=true;
+    gs.dice=[d1,d2]; gs.rolled=true; gs.lastDiceSum=d1+d2;
+
+    // Jail handling
     if (gs.jail[clientId]) {
-      if(d1===d2){gs.jail[clientId]=false;gs.log.unshift(`${name} gooide dubbel, vrij!`);}
-      else{gs.log.unshift(`${name} zit nog in de gevangenis.`);monoBroadcast(room);return;}
+      gs.jailTurns[clientId]++;
+      if (d1===d2) {
+        gs.jail[clientId]=false; gs.jailTurns[clientId]=0;
+        gs.log.unshift(`🎉 ${name} gooide dubbel! Vrij!`);
+      } else if (gs.jailTurns[clientId]>=3) {
+        gs.jail[clientId]=false; gs.jailTurns[clientId]=0;
+        gs.money[clientId] = (gs.money[clientId]||0) - 150;
+        gs.log.unshift(`${name} betaalt €150 borgtocht en is vrij.`);
+        monoCheckBankruptcy(gs, clientId);
+      } else {
+        gs.log.unshift(`${name} in de bak. Poging ${gs.jailTurns[clientId]}/3 — geen dubbel.`);
+        monoBroadcast(room); return;
+      }
     }
-    const old=gs.pos[clientId]; gs.pos[clientId]=(old+d1+d2)%40;
-    if(gs.pos[clientId]<old){gs.money[clientId]+=200;gs.log.unshift(`${name} passeert GO, +€200!`);}
-    const sq=BOARD[gs.pos[clientId]];
-    gs.log.unshift(`${name} gooit ${d1}+${d2}=${d1+d2} → ${sq.n}`);
-    if(sq.t==='gotojail'){gs.pos[clientId]=10;gs.jail[clientId]=true;gs.log.unshift(`${name} gaat naar gevangenis!`);}
-    else if(sq.t==='tax'){gs.money[clientId]-=sq.a;gs.log.unshift(`${name} betaalt €${sq.a} belasting.`);}
-    else if((sq.t==='prop'||sq.t==='rr'||sq.t==='util')&&gs.props[gs.pos[clientId]]&&gs.props[gs.pos[clientId]]!==clientId){
-      const owner=gs.props[gs.pos[clientId]], rent=sq.r||25;
-      gs.money[clientId]-=rent; gs.money[owner]+=rent;
-      gs.log.unshift(`${name} betaalt €${rent} aan ${room.clients.find(c=>c.id===owner)?.name||'?'}.`);
+
+    const oldPos = gs.pos[clientId];
+    gs.pos[clientId] = (oldPos + d1 + d2) % 40;
+    const newPos = gs.pos[clientId];
+
+    if (newPos < oldPos && !gs.jail[clientId]) {
+      gs.money[clientId] = (gs.money[clientId]||0) + 400;
+      gs.log.unshift(`${name} passeert START! +€400 💰`);
     }
-    if(gs.money[clientId]<=0){gs.bankrupt[clientId]=true;gs.money[clientId]=0;gs.log.unshift(`${name} is FAILLIET!`);}
-    monoBroadcast(room);
+
+    const sq = MONO_BOARD[newPos];
+    gs.log.unshift(`${name} gooit ${d1}+${d2} → ${sq.emoji} ${sq.n}`);
+
+    // --- SQUARE EFFECTS ---
+    if (sq.t==='gotojail') {
+      gs.pos[clientId]=10; gs.jail[clientId]=true;
+      gs.log.unshift(`🔒 ${name} gaat DIRECT naar de gevangenis!`);
+      gs.popup = {kind:'jail_card'};
+      gs.phase = 'popup';
+    } else if (sq.t==='tax') {
+      gs.money[clientId] = (gs.money[clientId]||0) - sq.a;
+      monoCheckBankruptcy(gs, clientId);
+      gs.popup = {kind:'tax_card', sq};
+      gs.phase = 'popup';
+    } else if (sq.t==='chance') {
+      const card = monoDrawCard(gs, 'chance');
+      gs.pendingCard = {card, pid:clientId};
+      gs.popup = {kind:'chance_card', card};
+      gs.phase = 'popup';
+    } else if (sq.t==='chest') {
+      const card = monoDrawCard(gs, 'chest');
+      gs.pendingCard = {card, pid:clientId};
+      gs.popup = {kind:'chest_card', card};
+      gs.phase = 'popup';
+    } else if ((sq.t==='prop'||sq.t==='rr'||sq.t==='util') && !gs.props[newPos]) {
+      gs.popup = {kind:'buy_card', sq, sqIdx:newPos};
+      gs.phase = 'popup';
+    } else if ((sq.t==='prop'||sq.t==='rr'||sq.t==='util') && gs.props[newPos] && gs.props[newPos].ownerId!==clientId) {
+      const rent = monoCalcRent(newPos, gs);
+      const ownerName = room.clients.find(c=>c.id===gs.props[newPos].ownerId)?.name||'?';
+      gs.pendingRent = {sqIdx:newPos, rent, ownerId:gs.props[newPos].ownerId};
+      gs.popup = {kind:'rent_card', sq, rent, ownerName};
+      gs.phase = 'dash';
+    }
+    monoBroadcast(room); return;
   }
-  else if(msg.action==='BUY'){
-    const sq=BOARD[gs.pos[clientId]];
-    if(!gs.rolled||gs.props[gs.pos[clientId]]||gs.money[clientId]<(sq.p||9999)) return;
-    gs.money[clientId]-=sq.p; gs.props[gs.pos[clientId]]=clientId;
-    gs.log.unshift(`${name} koopt ${sq.n} voor €${sq.p}!`);
-    monoBroadcast(room);
+
+  // ---- CLOSE POPUP ----
+  if (msg.action==='CLOSE_POPUP' && gs.phase==='popup') {
+    if (gs.pendingCard) {
+      monoApplyCard(room, clientId, gs.pendingCard.card);
+      gs.pendingCard = null;
+    }
+    gs.popup = null; gs.phase = 'playing';
+    monoBroadcast(room); return;
   }
-  else if(msg.action==='END_TURN'){
-    gs.rolled=false; gs.dice=null;
-    let ni=(gs.currentIdx+1)%gs.players.length, s=0;
-    while(gs.bankrupt[gs.players[ni]]&&s++<gs.players.length) ni=(ni+1)%gs.players.length;
-    gs.currentIdx=ni; gs.current=gs.players[ni];
-    gs.log.unshift(`${room.clients.find(c=>c.id===gs.current)?.name||'?'} is aan de beurt.`);
-    monoBroadcast(room);
+
+  // ---- BUY ----
+  if (msg.action==='BUY' && gs.phase==='popup') {
+    const sqIdx = gs.popup?.sqIdx ?? gs.pos[clientId];
+    const sq = MONO_BOARD[sqIdx];
+    if (!gs.props[sqIdx] && (gs.money[clientId]||0) >= (sq.p||9999)) {
+      gs.money[clientId] -= sq.p;
+      gs.props[sqIdx] = {ownerId:clientId, level:0};
+      gs.log.unshift(`${name} koopt ${sq.emoji} ${sq.n} voor €${sq.p}!`);
+    }
+    gs.popup=null; gs.phase='playing';
+    monoBroadcast(room); return;
+  }
+
+  // ---- UPGRADE ----
+  if (msg.action==='UPGRADE') {
+    const sqIdx = msg.sqIdx;
+    const prop = gs.props[sqIdx];
+    if (!prop||prop.ownerId!==clientId||prop.level>=5) return;
+    const sq = MONO_BOARD[sqIdx];
+    const cost = monoUpgradeCost(sq);
+    if ((gs.money[clientId]||0) < cost) { send(ws,{type:'TOAST',text:`Upgrade kost €${cost}. Te weinig!`}); return; }
+    gs.money[clientId] -= cost;
+    prop.level++;
+    gs.log.unshift(`${name} upgradet ${sq.emoji} ${sq.n} → ${MONO_LEVEL_EMOJI[prop.level]} ${MONO_LEVEL_NAMES[prop.level]}!`);
+    monoBroadcast(room); return;
+  }
+
+  // ---- DASH ----
+  if (msg.action==='DASH' && gs.phase==='dash') {
+    const pr = gs.pendingRent;
+    const success = Math.random() < 0.30;
+    if (success) {
+      gs.log.unshift(`💨 ${name} dashte weg! Ontsnapt aan de huur! 🏃`);
+    } else {
+      const pay = pr.rent * 2;
+      gs.money[clientId] = (gs.money[clientId]||0) - pay;
+      gs.money[pr.ownerId] = (gs.money[pr.ownerId]||0) + pay;
+      const ownerName = room.clients.find(c=>c.id===pr.ownerId)?.name||'?';
+      gs.log.unshift(`${name} probeerde te dashen maar GEPAKT! Betaalt DUBBEL €${pay} aan ${ownerName} 😂`);
+      monoCheckBankruptcy(gs, clientId);
+    }
+    gs.pendingRent=null; gs.popup=null; gs.phase='playing';
+    monoBroadcast(room); return;
+  }
+
+  // ---- PAY RENT ----
+  if (msg.action==='PAY_RENT' && gs.phase==='dash') {
+    const pr = gs.pendingRent;
+    gs.money[clientId] = (gs.money[clientId]||0) - pr.rent;
+    gs.money[pr.ownerId] = (gs.money[pr.ownerId]||0) + pr.rent;
+    const ownerName = room.clients.find(c=>c.id===pr.ownerId)?.name||'?';
+    gs.log.unshift(`${name} betaalt €${pr.rent} huur aan ${ownerName}.`);
+    monoCheckBankruptcy(gs, clientId);
+    gs.pendingRent=null; gs.popup=null; gs.phase='playing';
+    monoBroadcast(room); return;
+  }
+
+  // ---- SPIN WHEEL (triggered by current player when cop landed on them) ----
+  if (msg.action==='SPIN_WHEEL' && gs.phase==='spinning') {
+    const result = monoSpin();
+    gs.spinResult = result;
+    const victims = gs.spinVictims||[];
+    victims.forEach(vid => {
+      const vname = room.clients.find(c=>c.id===vid)?.name||'?';
+      if (result.type==='free') {
+        gs.log.unshift(`🎉 ${vname} komt vrijuit! Agent had zijn donut.`);
+      } else if (result.type==='fine') {
+        gs.money[vid] = (gs.money[vid]||0) - result.v;
+        gs.log.unshift(`💸 ${vname} betaalt €${result.v} boete!`);
+        monoCheckBankruptcy(gs, vid);
+      } else if (result.type==='jail') {
+        gs.pos[vid]=10; gs.jail[vid]=true;
+        gs.log.unshift(`🔒 ${vname} gearresteerd door de agent!`);
+      } else if (result.type==='chase') {
+        gs.pos[vid]=(gs.pos[vid]-3+40)%40;
+        gs.log.unshift(`🏃 ${vname} ontsnapt maar gaat 3 stappen terug!`);
+      }
+    });
+    gs.spinVictims=[];
+    gs.phase='spin_result';
+    monoBroadcast(room); return;
+  }
+
+  // ---- CLOSE SPIN RESULT ----
+  if (msg.action==='CLOSE_SPIN' && gs.phase==='spin_result') {
+    gs.spinResult=null;
+    monoCopDone(room); return;
+  }
+
+  // ---- USE FREE PASS ----
+  if (msg.action==='USE_FREE_PASS') {
+    if (!gs.freePass[clientId]) return;
+    gs.freePass[clientId]=false; gs.jail[clientId]=false; gs.jailTurns[clientId]=0;
+    gs.log.unshift(`${name} gebruikt de vrijlatingspas! 🗝️`);
+    monoBroadcast(room); return;
+  }
+
+  // ---- END TURN ----
+  if (msg.action==='END_TURN') {
+    monoEndTurn(room); return;
   }
 }
 

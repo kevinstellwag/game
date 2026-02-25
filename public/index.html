@@ -612,10 +612,8 @@ const UI = {
       if (rs.settings?.maxPoints) pts.value = rs.settings.maxPoints;
     }
 
-    // If game started AND we're on the lobby screen, go to game screen
-    // (Don't auto-redirect if we intentionally came back to lobby)
-    const onLobby = document.getElementById('screen-lobby').classList.contains('active');
-    if (rs.phase === 'ingame' && !onLobby) {
+    // If game is in progress, go to game screen
+    if (rs.phase === 'ingame') {
       UI.enterGame();
     }
   },
@@ -1132,31 +1130,35 @@ const Mono = {
       </div>
       <div class="info-box">
         <h3>Spelregels</h3>
-        <p>De <strong>laatste speler is altijd de AGENT 👮</strong>. Als de agent op jouw vakje landt, draait hij het rad — vrijuit, boete, of DE BAK. Land je op een betaald pand? Je kan <strong>DASHEN</strong> (30% kans op ontsnapping, anders betaal je dubbel). Koop panden en upgrade ze van Kraakpand tot <strong>MANSION 👑</strong>.</p>
+        <p>Er is een <strong>NPC Agent 👮</strong> die automatisch na elke ronde rijdt. Als hij op jouw vakje landt, draait de actieve speler het rad — vrijuit, boete, of DE BAK. Land je op een betaald pand? Je kan <strong>DASHEN</strong> (30% kans op ontsnapping, anders betaal je dubbel). Koop panden en upgrade ze van Kraakpand tot <strong>MANSION 👑</strong>.</p>
       </div>
       <div class="info-box">
-        <h3>Spelers (laatste = Agent)</h3>
-        ${(myRoomState?.players||[]).map((p,i,arr) => `
+        <h3>Spelers</h3>
+        ${(myRoomState?.players||[]).map((p,i) => `
           <div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0;border-bottom:1px solid rgba(255,255,255,0.06)">
-            <span style="font-size:1.4rem">${i===arr.length-1 ? '👮' : TOKENS[i]||'●'}</span>
+            <span class="mono-legend-tok" style="background:${PLAYER_COLORS[i]};color:white;width:28px;height:28px;font-size:0.85rem">${(p.name||'?').charAt(0).toUpperCase()}</span>
             <span style="font-weight:800">${esc(p.name)}</span>
-            ${i===arr.length-1?'<span style="background:#ffd93d;color:#111;border-radius:20px;padding:0.1rem 0.6rem;font-size:0.75rem;font-weight:900">AGENT</span>':''}
             ${p.id===myId?'<span style="color:var(--accent4);font-size:0.8rem">(jij)</span>':''}
+            ${p.isHost?'<span style="color:#ffd93d;font-size:0.8rem">👑</span>':''}
           </div>
         `).join('')}
+        <div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0;margin-top:0.4rem;border-top:2px solid #ffd93d44">
+          <span class="mono-legend-tok" style="background:#ffd93d;color:#111;width:28px;height:28px;font-size:0.85rem">👮</span>
+          <span style="font-weight:800;color:#ffd93d">Agent</span>
+          <span style="background:#ffd93d22;color:#ffd93d;border-radius:20px;padding:0.1rem 0.6rem;font-size:0.72rem;font-weight:900;border:1px solid #ffd93d44">NPC — rijdt automatisch</span>
+        </div>
       </div>
       ${isHost() ? `
         <button class="btn-start-game" style="background:linear-gradient(135deg,#228b22,#0a4a0a)" onclick="App.startGame()">
           🎲 Start Straatvariant!
         </button>
-        ${(myRoomState?.players?.length||0)<2?'<p class="warn">⚠️ Minimaal 2 spelers nodig!</p>':''}
+        ${(myRoomState?.players?.length||0)<1?'<p class="warn">⚠️ Minimaal 1 speler nodig!</p>':''}
       ` : '<div class="waiting-txt">Wachten op host...</div>'}
     `;
   },
 
   renderFull(area, state) {
     const isMyTurn = state.current === myId;
-    const isCop = myId === state.copId;
     const myMoney = state.money?.[myId] || 0;
     const myPos = monoAnimPos[myId] !== undefined ? monoAnimPos[myId] : (state.pos?.[myId] || 0);
     const sq = MONO_BOARD_CLIENT[myPos];
@@ -1170,7 +1172,11 @@ const Mono = {
           ${state.dice ? `<span class="mono-dice">🎲 ${state.dice[0]}</span><span class="mono-dice">🎲 ${state.dice[1]}</span><span style="font-weight:800;margin-left:0.2rem">= ${state.dice[0]+state.dice[1]}</span>` : '<span style="color:#556">Nog geen worp</span>'}
         </div>
         <div class="mono-tb-mid">
-          ${isMyTurn ? `<span class="your-turn-pill">${isCop?'👮 ':''}JOUW BEURT!</span>` : `<span style="color:#889">⏳ ${esc(monoGetName(state, state.current))} ${state.current===state.copId?'👮':''}</span>`}
+          ${state.current==='cop' 
+            ? `<span style="color:#ffd93d;font-weight:800;animation:pulse 1s infinite">👮 Agent rijdt...</span>`
+            : isMyTurn 
+              ? `<span class="your-turn-pill">JOUW BEURT!</span>` 
+              : `<span style="color:#889">⏳ ${esc(monoGetName(state, state.current))}</span>`}
         </div>
         <div class="mono-tb-right">
           <span style="color:#6bcb77;font-weight:800">€${myMoney}</span>
@@ -1187,15 +1193,19 @@ const Mono = {
         <div class="mono-center">
           <div class="mono-center-title">STRAAT<br>VARIANT</div>
           <div class="mono-legend">
-            ${state.players.map((pid,i) => {
+            ${(state.realPlayers||state.players).map((pid,i) => {
               const p = myRoomState?.players?.find(pl=>pl.id===pid);
-              const isc = pid===state.copId;
               return `<div class="mono-legend-row ${state.bankrupt?.[pid]?'bankrupt':''}">
-                <span class="mono-legend-tok" style="background:${isc?'#ffd93d':PLAYER_COLORS[i]};color:${isc?'#111':'white'}">${isc?'👮':(p?.name||'?').charAt(0).toUpperCase()}</span>
-                <span class="mono-legend-name">${esc(p?.name||'?')}</span>
+                <span class="mono-legend-tok" style="background:${PLAYER_COLORS[i]};color:white">${(p?.name||'?').charAt(0).toUpperCase()}</span>
+                <span class="mono-legend-name">${esc(p?.name||'?')}${pid===myId?' ★':''}</span>
                 <span class="mono-legend-money">€${state.money?.[pid]||0}</span>
               </div>`;
             }).join('')}
+            <div class="mono-legend-row">
+              <span class="mono-legend-tok" style="background:#ffd93d;color:#111">👮</span>
+              <span class="mono-legend-name" style="color:#ffd93d">Agent NPC</span>
+              <span class="mono-legend-money" style="color:#ffd93d">🚔</span>
+            </div>
           </div>
         </div>
       </div>
@@ -1330,7 +1340,7 @@ const Mono = {
         ${!state.rolled ? `
           ${hasFreePass && inJail ? `<button class="maction ma-free" onclick="sendWS({type:'GAME_ACTION',action:'USE_FREE_PASS'})">🗝️ Gebruik Vrijpas</button>` : ''}
           <button class="maction ma-roll" onclick="sendWS({type:'GAME_ACTION',action:'ROLL'})">
-            🎲 Gooi Dobbelstenen ${isCop?'👮':''}
+            🎲 Gooi Dobbelstenen
           </button>
         ` : `
           <button class="maction ma-end" onclick="sendWS({type:'GAME_ACTION',action:'END_TURN'})">
@@ -1417,7 +1427,7 @@ const Mono = {
           <div class="popup-emoji">👮</div>
           <div class="popup-title">AGENT STAAT NAAST JE!</div>
           <div class="popup-text">De agent staat op hetzelfde vakje als <strong>${(pop.victims||[]).map(v=>esc(v)).join(' & ')}</strong>! Draai het rad!</div>
-          ${myId===state.current ? `<button class="pop-btn pop-spin" onclick="sendWS({type:'GAME_ACTION',action:'SPIN_WHEEL'})">🎡 DRAAI HET RAD!</button>` : '<div class="popup-waiting">Agent draait het rad...</div>'}
+          ${isMyTurn ? `<button class="pop-btn pop-spin" onclick="sendWS({type:'GAME_ACTION',action:'SPIN_WHEEL'})">🎡 DRAAI HET RAD!</button>` : '<div class="popup-waiting">Wachten op actieve speler...</div>'}
         </div>`;
     }
 

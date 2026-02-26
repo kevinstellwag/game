@@ -512,6 +512,59 @@ input,textarea,button{font-family:'Nunito',sans-serif}
 .cah-score-toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:linear-gradient(135deg,#1a1a2e,#2d2d4a);border:3px solid var(--accent2);border-radius:20px;padding:1.5rem 2rem;text-align:center;animation:popIn 0.4s cubic-bezier(0.34,1.56,0.64,1);pointer-events:none}
 .cah-score-toast h2{font-family:Bangers,cursive;font-size:2rem;color:var(--accent2);letter-spacing:3px}
 .cah-score-toast p{color:var(--text2);font-size:0.85rem;margin-top:0.3rem}
+
+/* ===== HOME LOBBY ===== */
+.home-lobby{background:var(--card);border-radius:var(--r);border:1px solid var(--border);margin-top:0.75rem;overflow:hidden;animation:slideUp 0.3s ease}
+.hl-tabs{display:flex;border-bottom:1px solid var(--border)}
+.hl-tab{flex:1;padding:0.6rem;background:none;border:none;color:var(--text2);font-weight:700;font-size:0.82rem;cursor:pointer;font-family:Nunito,sans-serif;transition:all 0.15s;position:relative}
+.hl-tab.active{color:var(--accent2);background:rgba(255,217,61,0.06)}
+.hl-tab.active::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--accent2)}
+.hl-body{display:none;padding:0.75rem}
+.hl-body.active{display:flex;flex-direction:column;gap:0.6rem}
+/* online players */
+.hl-players{display:flex;flex-wrap:wrap;gap:0.4rem}
+.hl-player{display:flex;align-items:center;gap:0.35rem;padding:0.3rem 0.55rem;background:var(--bg2);border-radius:20px;border:1px solid var(--border);font-size:0.78rem;font-weight:700;cursor:default;transition:all 0.2s;max-width:160px}
+.hl-player.can-invite{cursor:pointer;border-color:transparent}
+.hl-player.can-invite:hover{border-color:var(--accent3);background:rgba(107,203,119,0.1);transform:scale(1.04)}
+.hl-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#6bcb77;box-shadow:0 0 4px #6bcb77}
+.hl-dot.in-room{background:#ffd93d;box-shadow:0 0 4px #ffd93d}
+.hl-pname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hl-pinroom{font-size:0.6rem;color:var(--text2);margin-left:2px}
+/* open rooms */
+.hl-rooms{display:flex;flex-direction:column;gap:0.4rem}
+.hl-room{display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;background:var(--bg2);border-radius:10px;border:2px solid var(--border);cursor:pointer;transition:all 0.2s}
+.hl-room:hover{border-color:var(--accent4);transform:translateX(3px)}
+.hl-room-game{font-size:1.2rem;flex-shrink:0}
+.hl-room-info{flex:1;min-width:0}
+.hl-room-name{font-weight:800;font-size:0.82rem}
+.hl-room-sub{font-size:0.68rem;color:var(--text2);margin-top:1px}
+.hl-room-join{padding:0.35rem 0.75rem;background:linear-gradient(135deg,#4d96ff,#2356d4);border:none;border-radius:8px;color:#fff;font-weight:900;font-size:0.75rem;cursor:pointer;font-family:Nunito,sans-serif;flex-shrink:0}
+/* home chat */
+.hl-chat{display:flex;flex-direction:column;gap:0}
+.hl-chat-msgs{height:140px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;padding:2px 0;margin-bottom:0.5rem}
+.hl-chat-msgs::-webkit-scrollbar{width:3px}
+.hl-chat-msgs::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.hl-chat-msg{display:flex;gap:0.4rem;align-items:flex-start}
+.hl-chat-av{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.55rem;font-weight:900;flex-shrink:0;margin-top:1px}
+.hl-chat-body{flex:1;min-width:0}
+.hl-chat-name{font-size:0.65rem;font-weight:800;color:var(--text2)}
+.hl-chat-text{font-size:0.8rem;color:var(--text);line-height:1.3;word-break:break-word}
+.hl-chat-sys{font-size:0.72rem;color:var(--text2);font-style:italic;text-align:center;padding:2px 0}
+.hl-input-row{display:flex;gap:0.4rem}
+.hl-input-row input{flex:1;padding:0.5rem 0.7rem;background:var(--bg);border:2px solid var(--border);border-radius:9px;color:var(--text);font-size:0.85rem;font-family:Nunito,sans-serif}
+.hl-input-row input:focus{outline:none;border-color:var(--accent4)}
+.hl-input-row button{padding:0.5rem 0.75rem;background:linear-gradient(135deg,var(--accent4),#2356d4);border:none;border-radius:9px;color:#fff;font-weight:900;cursor:pointer}
+/* invite popup */
+.invite-popup{position:fixed;top:1rem;left:50%;transform:translateX(-50%) translateY(-120%);background:var(--card);border:2px solid var(--accent3);border-radius:16px;padding:1.25rem 1.5rem;z-index:9999;max-width:320px;width:calc(100vw - 2rem);box-shadow:0 8px 32px rgba(0,0,0,0.6);transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1)}
+.invite-popup.show{transform:translateX(-50%) translateY(0)}
+.invite-popup h3{font-family:Bangers,cursive;font-size:1.4rem;letter-spacing:2px;color:var(--accent3);margin-bottom:0.3rem}
+.invite-popup p{color:var(--text2);font-size:0.82rem;margin-bottom:0.9rem;line-height:1.4}
+.invite-btns{display:flex;gap:0.5rem}
+.inv-accept{flex:1;padding:0.6rem;background:linear-gradient(135deg,#228b22,#6bcb77);border:none;border-radius:10px;color:#fff;font-weight:900;cursor:pointer;font-family:Nunito,sans-serif}
+.inv-decline{flex:1;padding:0.6rem;background:var(--bg2);border:2px solid var(--border);border-radius:10px;color:var(--text2);font-weight:700;cursor:pointer;font-family:Nunito,sans-serif}
+/* lobby invite button */
+.lob-invite-btn{padding:0.4rem 0.75rem;background:linear-gradient(135deg,#228b22,#6bcb77);border:none;border-radius:8px;color:#fff;font-weight:800;font-size:0.75rem;cursor:pointer;font-family:Nunito,sans-serif;white-space:nowrap}
+.lob-invite-btn:hover{filter:brightness(1.1)}
 </style>
 </head>
 <body>
@@ -557,6 +610,44 @@ input,textarea,button{font-family:'Nunito',sans-serif}
       <button class="btn-act" onclick="App.joinRoom()">Joinen!</button>
       <button class="btn-back" onclick="UI.hideForm()">← Terug</button>
     </div>
+
+    <!-- Home Lobby Panel -->
+    <div id="home-lobby-panel" class="home-lobby hidden">
+      <div class="hl-tabs">
+        <button class="hl-tab active" onclick="HomeLobby.switchTab('chat', this)">💬 Chat</button>
+        <button class="hl-tab" onclick="HomeLobby.switchTab('players', this)" id="hl-tab-players">👥 Online</button>
+        <button class="hl-tab" onclick="HomeLobby.switchTab('rooms', this)" id="hl-tab-rooms">🎮 Kamers</button>
+      </div>
+      <div id="hl-body-chat" class="hl-body active">
+        <div class="hl-chat">
+          <div class="hl-chat-msgs" id="hl-chat-msgs"></div>
+          <div class="hl-input-row">
+            <input id="hl-chat-input" type="text" placeholder="Stuur een bericht..." maxlength="200"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();HomeLobby.sendChat();}">
+            <button onclick="HomeLobby.sendChat()">➤</button>
+          </div>
+        </div>
+      </div>
+      <div id="hl-body-players" class="hl-body">
+        <div style="font-size:0.75rem;color:var(--text2);margin-bottom:0.35rem">Klik op iemand om uit te nodigen (alleen als je al een kamer hebt aangemaakt):</div>
+        <div class="hl-players" id="hl-players-list"></div>
+      </div>
+      <div id="hl-body-rooms" class="hl-body">
+        <div class="hl-rooms" id="hl-rooms-list">
+          <div style="color:var(--text2);font-size:0.82rem;text-align:center;padding:1rem">Geen open kamers.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Invite Popup -->
+<div id="invite-popup" class="invite-popup">
+  <h3>📨 Uitnodiging!</h3>
+  <p id="invite-popup-text">Je bent uitgenodigd door iemand.</p>
+  <div class="invite-btns">
+    <button class="inv-accept" id="inv-accept-btn">✅ Joinen!</button>
+    <button class="inv-decline" onclick="HomeLobby.declineInvite()">❌ Nee</button>
   </div>
 </div>
 
@@ -704,6 +795,7 @@ function handleMsg(msg) {
   if (msg.type === 'ROOM_JOINED') {
     myId = msg.yourId;
     myRoomState = msg.roomState;
+    HomeLobby.onRoomJoined(msg.roomState?.code);
     UI.enterLobby();
     return;
   }
@@ -744,6 +836,19 @@ function handleMsg(msg) {
     toast('❌ ' + msg.message);
     return;
   }
+  if (msg.type === 'HOME_STATE') {
+    hlMyClientId = msg.yourId || hlMyClientId;
+    HomeLobby.onState(msg.state);
+    return;
+  }
+  if (msg.type === 'HOME_CHAT') {
+    HomeLobby.addChatMsg(msg.message);
+    return;
+  }
+  if (msg.type === 'INVITE') {
+    HomeLobby.showInvite(msg);
+    return;
+  }
 }
 
 // ===== APP ACTIONS =====
@@ -751,7 +856,14 @@ const App = {
   createRoom() {
     const name = document.getElementById('in-create-name').value.trim();
     if (!name) { toast('Vul je naam in!'); return; }
-    connectWS(() => sendWS({ type: 'CREATE_ROOM', playerName: name, game: selectedGame }));
+    Account.load().then(profile => {
+      const color = profile ? profile.color : '#FF6B6B';
+      const dbId = profile ? (profile.name + '_' + (profile.createdAt || 0)) : null;
+      connectWS(() => {
+        sendWS({ type: 'CREATE_ROOM', playerName: name, game: selectedGame, color, dbId });
+        HomeLobby.onRoomJoined('pending');
+      });
+    });
   },
 
   joinRoom() {
@@ -759,7 +871,11 @@ const App = {
     const code = document.getElementById('in-join-code').value.trim().toUpperCase();
     if (!name) { toast('Vul je naam in!'); return; }
     if (!code) { toast('Vul de kamer code in!'); return; }
-    connectWS(() => sendWS({ type: 'JOIN_ROOM', playerName: name, code }));
+    Account.load().then(profile => {
+      const color = profile ? profile.color : '#4d96ff';
+      const dbId = profile ? (profile.name + '_' + (profile.createdAt || 0)) : null;
+      connectWS(() => sendWS({ type: 'JOIN_ROOM', playerName: name, code, color, dbId }));
+    });
   },
 
   startGame() {
@@ -832,6 +948,7 @@ const UI = {
         <div class="lp-avatar" style="background:${COLORS[i%COLORS.length]};color:#1a1a2e">${p.name.charAt(0).toUpperCase()}</div>
         <div class="lp-name">${esc(p.name)} ${p.id === myId ? '<span style="color:var(--accent4)">(jij)</span>' : ''}</div>
         <div class="lp-badge">${p.isHost ? '👑 Host' : '🎮'}</div>
+        ${amHost && p.id !== myId ? `<button class="lob-invite-btn" onclick="HomeLobby.inviteFromLobby('${p.id}')">📨 Uitnodigen</button>` : ''}
       </div>
     `).join('');
 
@@ -861,8 +978,8 @@ const UI = {
     if (isHost()) {
       sendWS({ type: 'SET_GAME', game: myRoomState?.game || 'cah' });
     }
+    HomeLobby.onLeftRoom();
     show('screen-lobby');
-    // Small delay so server has time to reset before we refresh
     setTimeout(() => UI.refreshLobby(), 100);
   },
 
@@ -1279,7 +1396,208 @@ handleMsg = function(msg) {
   }
 };
 
-document.addEventListener('DOMContentLoaded', () => Account.init());
+document.addEventListener('DOMContentLoaded', () => {
+  Account.init();
+  // Connect to home lobby on load
+  setTimeout(() => HomeLobby.connect(), 500);
+});
+
+
+
+// ===== HOME LOBBY SYSTEM =====
+let hlMyClientId = null;    // our home lobby client ID (from server)
+let hlCurrentRoom = null;   // room code if we're in one
+let pendingInvite = null;   // incoming invite data
+
+const HomeLobby = {
+  // Called when the page loads - connect to home lobby
+  async connect() {
+    // Wait for WS to be ready
+    const profile = await Account.load().catch(() => null);
+    const name = profile ? profile.name :
+      (document.getElementById('in-create-name')?.value?.trim() || 'Gast');
+    const color = profile ? profile.color : '#4d96ff';
+    const dbId = profile ? (profile.dbId || null) : null;
+
+    connectWS(() => {
+      sendWS({ type: 'HOME_JOIN', name, color, dbId });
+      document.getElementById('home-lobby-panel')?.classList.remove('hidden');
+    });
+  },
+
+  // Handle incoming HOME_STATE from server
+  onState(state) {
+    HomeLobby.renderPlayers(state.players || []);
+    HomeLobby.renderRooms(state.openRooms || []);
+    if (state.chat) {
+      const el = document.getElementById('hl-chat-msgs');
+      if (el && el.children.length === 0) {
+        state.chat.forEach(m => HomeLobby.addChatMsg(m));
+      }
+    }
+    // Update tab badges
+    const onlineCount = (state.players || []).length;
+    const roomsCount = (state.openRooms || []).length;
+    const tabP = document.getElementById('hl-tab-players');
+    const tabR = document.getElementById('hl-tab-rooms');
+    if (tabP) tabP.textContent = '👥 Online (' + onlineCount + ')';
+    if (tabR) tabR.textContent = '🎮 Kamers' + (roomsCount > 0 ? ' (' + roomsCount + ')' : '');
+  },
+
+  renderPlayers(players) {
+    const el = document.getElementById('hl-players-list');
+    if (!el) return;
+    if (players.length === 0) {
+      el.innerHTML = '<div style="color:var(--text2);font-size:0.8rem">Nog niemand online.</div>';
+      return;
+    }
+    el.innerHTML = players.map(function(p) {
+      const isMe = p.id === hlMyClientId;
+      const canInvite = hlCurrentRoom && !isMe && !p.inRoom;
+      const initial = p.name.charAt(0).toUpperCase();
+      const inRoomTxt = p.inRoom ? ' (in kamer)' : '';
+      return [
+        '<div class="hl-player' + (canInvite ? ' can-invite' : '') + '"',
+        canInvite ? ' onclick="HomeLobby.sendInvite(\'' + p.id + '\')" title="Uitnodigen voor jouw kamer"' : '',
+        '>',
+        '<div class="hl-dot' + (p.inRoom ? ' in-room' : '') + '" style="background:' + (p.color || '#6bcb77') + ';box-shadow:0 0 4px ' + (p.color || '#6bcb77') + '"></div>',
+        '<div class="hl-pname">' + esc(p.name) + (isMe ? ' (jij)' : '') + '</div>',
+        p.inRoom ? '<div class="hl-pinroom">🎮</div>' : '',
+        '</div>',
+      ].join('');
+    }).join('');
+  },
+
+  renderRooms(rooms) {
+    const el = document.getElementById('hl-rooms-list');
+    if (!el) return;
+    const gameIcons = { cah: '🃏', poker: '♠️', monopoly: '🏦' };
+    const gameNames = { cah: 'Cards Against Humanity', poker: 'Poker', monopoly: 'Monopoly Straatvariant' };
+    if (rooms.length === 0) {
+      el.innerHTML = '<div style="color:var(--text2);font-size:0.82rem;text-align:center;padding:1rem">Geen open kamers. Maak er een aan!</div>';
+      return;
+    }
+    el.innerHTML = rooms.map(function(r) {
+      return [
+        '<div class="hl-room" onclick="HomeLobby.joinRoom(\'' + r.code + '\', \'' + r.game + '\')">',
+        '  <div class="hl-room-game">' + (gameIcons[r.game] || '🎮') + '</div>',
+        '  <div class="hl-room-info">',
+        '    <div class="hl-room-name">' + (gameNames[r.game] || r.game) + '</div>',
+        '    <div class="hl-room-sub">Host: ' + esc(r.hostName) + ' · ' + r.playerCount + ' speler(s)</div>',
+        '  </div>',
+        '  <button class="hl-room-join" onclick="event.stopPropagation();HomeLobby.joinRoom(\'' + r.code + '\', \'' + r.game + '\')">Joinen</button>',
+        '</div>',
+      ].join('');
+    }).join('');
+  },
+
+  joinRoom(code, game) {
+    // Switch to join form with code pre-filled
+    UI.showForm('join');
+    const codeEl = document.getElementById('in-join-code');
+    if (codeEl) codeEl.value = code;
+    toast('📋 Kamer ' + code + ' — druk op Joinen!');
+  },
+
+  sendChat() {
+    const inp = document.getElementById('hl-chat-input');
+    const text = inp ? inp.value.trim() : '';
+    if (!text) return;
+    sendWS({ type: 'HOME_CHAT', text });
+    if (inp) inp.value = '';
+  },
+
+  addChatMsg(m) {
+    const el = document.getElementById('hl-chat-msgs');
+    if (!el) return;
+    const div = document.createElement('div');
+    if (m.system) {
+      div.className = 'hl-chat-sys';
+      div.textContent = m.text;
+    } else {
+      div.className = 'hl-chat-msg';
+      div.innerHTML = [
+        '<div class="hl-chat-av" style="background:' + (m.senderColor || '#4d96ff') + ';color:#111">',
+        m.senderName.charAt(0).toUpperCase(),
+        '</div>',
+        '<div class="hl-chat-body">',
+        '<div class="hl-chat-name">' + esc(m.senderName) + '</div>',
+        '<div class="hl-chat-text">' + esc(m.text) + '</div>',
+        '</div>',
+      ].join('');
+    }
+    el.appendChild(div);
+    el.scrollTop = el.scrollHeight;
+    // Keep max 50 messages in DOM
+    while (el.children.length > 50) el.removeChild(el.firstChild);
+  },
+
+  switchTab(tab, btn) {
+    document.querySelectorAll('.hl-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.hl-body').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const body = document.getElementById('hl-body-' + tab);
+    if (body) body.classList.add('active');
+  },
+
+  // Send invite to a player from the home lobby player list
+  sendInvite(targetId) {
+    if (!hlCurrentRoom) { toast('Je moet eerst een kamer aanmaken!'); return; }
+    sendWS({ type: 'INVITE', targetId });
+    toast('📨 Uitnodiging verstuurd!');
+  },
+
+  // Invite a player who is already in your game lobby (from lobby screen)
+  inviteFromLobby(targetId) {
+    sendWS({ type: 'INVITE', targetId });
+    toast('📨 Uitnodiging verstuurd!');
+  },
+
+  // Handle incoming invite
+  showInvite(data) {
+    pendingInvite = data;
+    const gameNames = { cah: 'Cards Against Humanity', poker: 'Poker', monopoly: 'Monopoly' };
+    const txt = document.getElementById('invite-popup-text');
+    if (txt) txt.innerHTML = '<strong>' + esc(data.fromName) + '</strong> nodigt je uit voor <strong>' + (gameNames[data.game] || data.game) + '</strong>!';
+    const acceptBtn = document.getElementById('inv-accept-btn');
+    if (acceptBtn) {
+      acceptBtn.onclick = function() { HomeLobby.acceptInvite(); };
+    }
+    const popup = document.getElementById('invite-popup');
+    if (popup) {
+      popup.classList.add('show');
+      // Auto-dismiss after 15s
+      setTimeout(() => { if (popup.classList.contains('show')) HomeLobby.declineInvite(); }, 15000);
+    }
+  },
+
+  acceptInvite() {
+    if (!pendingInvite) return;
+    const code = pendingInvite.roomCode || pendingInvite.code;
+    HomeLobby.declineInvite();
+    // Pre-fill the join form and join
+    UI.showForm('join');
+    const codeEl = document.getElementById('in-join-code');
+    if (codeEl) codeEl.value = code;
+    // Auto-join after short delay
+    setTimeout(() => App.joinRoom(), 200);
+  },
+
+  declineInvite() {
+    pendingInvite = null;
+    const popup = document.getElementById('invite-popup');
+    if (popup) popup.classList.remove('show');
+  },
+
+  // Called after creating/joining a room — update local state
+  onRoomJoined(code) {
+    hlCurrentRoom = code;
+  },
+
+  onLeftRoom() {
+    hlCurrentRoom = null;
+  },
+};
 
 </script>
 <script>

@@ -3,6 +3,7 @@ const { WebSocketServer } = require('ws');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const http = require('http');
+const { Pool } = require('pg');
 
 const app = express();
 const server = http.createServer(app);
@@ -12,7 +13,282 @@ app.use(express.static(path.join(__dirname, '../public')));
 app.use(express.json());
 app.get('/health', (req, res) => res.json({ ok: true, rooms: Object.keys(rooms).length }));
 
-// Keep WebSocket connections alive (Railway/Render close idle connections after ~30s)
+// ==================== DATABASE ====================
+const db = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+});
+
+async function initDB() {
+  if (!process.env.DATABASE_URL) { console.log('[DB] No DATABASE_URL — running without DB'); return; }
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS players (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        color TEXT DEFAULT '#4d96ff',
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        last_seen TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS player_stats (
+        player_id TEXT PRIMARY KEY REFERENCES players(id) ON DELETE CASCADE,
+        cah_wins INT DEFAULT 0,
+        cah_losses INT DEFAULT 0,
+        cah_rounds INT DEFAULT 0,
+        czar_picks INT DEFAULT 0,
+        cah_best_streak INT DEFAULT 0,
+        cah_current_streak INT DEFAULT 0,
+        cah_loser_rounds INT DEFAULT 0,
+        mono_props_bought INT DEFAULT 0,
+        mono_jail_visits INT DEFAULT 0,
+        mono_money_earned INT DEFAULT 0,
+        max_players_in_game INT DEFAULT 0,
+        played_at_midnight BOOLEAN DEFAULT FALSE,
+        total_score INT GENERATED ALWAYS AS (cah_wins * 3 + czar_picks + mono_money_earned / 1000) STORED
+      );
+      CREATE TABLE IF NOT EXISTS achievements (
+        id SERIAL PRIMARY KEY,
+        player_id TEXT REFERENCES players(id) ON DELETE CASCADE,
+        achievement_id TEXT NOT NULL,
+        unlocked_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(player_id, achievement_id)
+      );
+      CREATE TABLE IF NOT EXISTS game_history (
+        id SERIAL PRIMARY KEY,
+        game_type TEXT NOT NULL,
+        room_code TEXT NOT NULL,
+        played_at TIMESTAMPTZ DEFAULT NOW(),
+        player_count INT,
+        winner_id TEXT REFERENCES players(id) ON DELETE SET NULL,
+        winner_name TEXT,
+        rounds_played INT DEFAULT 0,
+        duration_seconds INT DEFAULT 0,
+        metadata JSONB DEFAULT '{}'
+      );
+      CREATE TABLE IF NOT EXISTS game_history_players (
+        game_id INT REFERENCES game_history(id) ON DELETE CASCADE,
+        player_id TEXT REFERENCES players(id) ON DELETE CASCADE,
+        player_name TEXT,
+        score INT DEFAULT 0,
+        finished_rank INT,
+        PRIMARY KEY (game_id, player_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_achievements_player ON achievements(player_id);
+      CREATE INDEX IF NOT EXISTS idx_game_history_player ON game_history_players(player_id);
+      CREATE INDEX IF NOT EXISTS idx_game_history_played_at ON game_history(played_at DESC);
+    `);
+    console.log('[DB] Schema ready ✅');
+  } catch(e) {
+    console.error('[DB] Init error:', e.message);
+  }
+}
+initDB();
+
+// ==================== DB HELPERS ====================
+const DB = {
+  async upsertPlayer(id, name, color) {
+    if (!process.env.DATABASE_URL) return;
+    try {
+      await db.query(`
+        INSERT INTO players (id, name, color, last_seen) VALUES ($1, $2, $3, NOW())
+        ON CONFLICT (id) DO UPDATE SET name=$2, color=$3, last_seen=NOW()
+      `, [id, name, color || '#4d96ff']);
+      await db.query(`
+        INSERT INTO player_stats (player_id) VALUES ($1)
+        ON CONFLICT (player_id) DO NOTHING
+      `, [id]);
+    } catch(e) { console.error('[DB] upsertPlayer:', e.message); }
+  },
+
+  async getPlayer(id) {
+    if (!process.env.DATABASE_URL) return null;
+    try {
+      const r = await db.query(`
+        SELECT p.*, ps.*, 
+          COALESCE(json_agg(a.achievement_id) FILTER (WHERE a.achievement_id IS NOT NULL), '[]') as achievements
+        FROM players p
+        LEFT JOIN player_stats ps ON ps.player_id = p.id
+        LEFT JOIN achievements a ON a.player_id = p.id
+        WHERE p.id = $1
+        GROUP BY p.id, ps.player_id, ps.cah_wins, ps.cah_losses, ps.cah_rounds,
+          ps.czar_picks, ps.cah_best_streak, ps.cah_current_streak, ps.cah_loser_rounds,
+          ps.mono_props_bought, ps.mono_jail_visits, ps.mono_money_earned,
+          ps.max_players_in_game, ps.played_at_midnight, ps.total_score
+      `, [id]);
+      return r.rows[0] || null;
+    } catch(e) { console.error('[DB] getPlayer:', e.message); return null; }
+  },
+
+  async updateCAHStats(id, { won, czarPick, players }) {
+    if (!process.env.DATABASE_URL) return;
+    try {
+      const h = new Date().getHours();
+      const midnight = h >= 0 && h < 4;
+      if (won) {
+        await db.query(`
+          UPDATE player_stats SET
+            cah_wins = cah_wins + 1,
+            cah_rounds = cah_rounds + 1,
+            czar_picks = czar_picks + $2,
+            cah_current_streak = cah_current_streak + 1,
+            cah_best_streak = GREATEST(cah_best_streak, cah_current_streak + 1),
+            max_players_in_game = GREATEST(max_players_in_game, $3),
+            played_at_midnight = played_at_midnight OR $4
+          WHERE player_id = $1
+        `, [id, czarPick ? 1 : 0, players || 2, midnight]);
+      } else {
+        await db.query(`
+          UPDATE player_stats SET
+            cah_losses = cah_losses + 1,
+            cah_rounds = cah_rounds + 1,
+            czar_picks = czar_picks + $2,
+            cah_loser_rounds = cah_loser_rounds + 1,
+            cah_current_streak = 0,
+            max_players_in_game = GREATEST(max_players_in_game, $3),
+            played_at_midnight = played_at_midnight OR $4
+          WHERE player_id = $1
+        `, [id, czarPick ? 1 : 0, players || 2, midnight]);
+      }
+      await DB.checkAchievements(id);
+    } catch(e) { console.error('[DB] updateCAHStats:', e.message); }
+  },
+
+  async updateMonoStats(id, { propsBought, jailVisits, moneyEarned, players }) {
+    if (!process.env.DATABASE_URL) return;
+    try {
+      await db.query(`
+        UPDATE player_stats SET
+          mono_props_bought = mono_props_bought + $2,
+          mono_jail_visits = mono_jail_visits + $3,
+          mono_money_earned = mono_money_earned + $4,
+          max_players_in_game = GREATEST(max_players_in_game, $5)
+        WHERE player_id = $1
+      `, [id, propsBought||0, jailVisits||0, moneyEarned||0, players||2]);
+      await DB.checkAchievements(id);
+    } catch(e) { console.error('[DB] updateMonoStats:', e.message); }
+  },
+
+  ACHIEVEMENT_CONDITIONS: [
+    { id: 'first_win',   check: s => s.cah_wins >= 1 },
+    { id: 'five_wins',   check: s => s.cah_wins >= 5 },
+    { id: 'czar_boss',   check: s => s.czar_picks >= 10 },
+    { id: 'degen',       check: s => s.cah_rounds >= 50 },
+    { id: 'monopolist',  check: s => s.mono_props_bought >= 20 },
+    { id: 'jailbird',    check: s => s.mono_jail_visits >= 5 },
+    { id: 'banker',      check: s => s.mono_money_earned >= 50000 },
+    { id: 'streaker',    check: s => s.cah_best_streak >= 3 },
+    { id: 'loser',       check: s => s.cah_loser_rounds >= 10 },
+    { id: 'nightowl',    check: s => s.played_at_midnight },
+    { id: 'politician',  check: s => s.cah_wins >= 1 && s.cah_losses >= s.cah_wins * 3 },
+  ],
+
+  async checkAchievements(playerId) {
+    if (!process.env.DATABASE_URL) return [];
+    try {
+      const sRes = await db.query('SELECT * FROM player_stats WHERE player_id=$1', [playerId]);
+      const achRes = await db.query('SELECT achievement_id FROM achievements WHERE player_id=$1', [playerId]);
+      const s = sRes.rows[0]; if (!s) return [];
+      const existing = new Set(achRes.rows.map(r => r.achievement_id));
+      const newOnes = [];
+      for (const { id, check } of DB.ACHIEVEMENT_CONDITIONS) {
+        if (!existing.has(id) && check(s)) {
+          await db.query('INSERT INTO achievements (player_id, achievement_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [playerId, id]);
+          newOnes.push(id);
+        }
+      }
+      return newOnes;
+    } catch(e) { console.error('[DB] checkAchievements:', e.message); return []; }
+  },
+
+  async saveGame(gameType, roomCode, winnerId, winnerName, rounds, durationSecs, players, metadata) {
+    if (!process.env.DATABASE_URL) return null;
+    try {
+      const r = await db.query(`
+        INSERT INTO game_history (game_type, room_code, winner_id, winner_name, rounds_played, duration_seconds, player_count, metadata)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id
+      `, [gameType, roomCode, winnerId||null, winnerName||null, rounds||0, durationSecs||0, players?.length||0, JSON.stringify(metadata||{})]);
+      const gameId = r.rows[0].id;
+      for (const p of (players||[])) {
+        if (p.id && p.id !== 'cop') {
+          await db.query(`
+            INSERT INTO game_history_players (game_id, player_id, player_name, score, finished_rank)
+            VALUES ($1,$2,$3,$4,$5)
+            ON CONFLICT DO NOTHING
+          `, [gameId, p.id, p.name, p.score||0, p.rank||null]);
+        }
+      }
+      return gameId;
+    } catch(e) { console.error('[DB] saveGame:', e.message); return null; }
+  },
+
+  async getLeaderboard(limit = 20) {
+    if (!process.env.DATABASE_URL) return [];
+    try {
+      const r = await db.query(`
+        SELECT p.id, p.name, p.color, ps.cah_wins, ps.czar_picks,
+               ps.cah_rounds, ps.mono_money_earned, ps.cah_best_streak,
+               ps.total_score,
+               COUNT(DISTINCT a.achievement_id) as achievement_count
+        FROM players p
+        JOIN player_stats ps ON ps.player_id = p.id
+        LEFT JOIN achievements a ON a.player_id = p.id
+        GROUP BY p.id, p.name, p.color, ps.cah_wins, ps.czar_picks,
+                 ps.cah_rounds, ps.mono_money_earned, ps.cah_best_streak, ps.total_score
+        ORDER BY ps.total_score DESC
+        LIMIT $1
+      `, [limit]);
+      return r.rows;
+    } catch(e) { console.error('[DB] getLeaderboard:', e.message); return []; }
+  },
+
+  async getGameHistory(playerId, limit = 10) {
+    if (!process.env.DATABASE_URL) return [];
+    try {
+      const r = await db.query(`
+        SELECT gh.*, ghp.score, ghp.finished_rank
+        FROM game_history gh
+        JOIN game_history_players ghp ON ghp.game_id = gh.id
+        WHERE ghp.player_id = $1
+        ORDER BY gh.played_at DESC
+        LIMIT $2
+      `, [playerId, limit]);
+      return r.rows;
+    } catch(e) { console.error('[DB] getGameHistory:', e.message); return []; }
+  },
+};
+
+// ==================== HTTP API ====================
+app.get('/api/player/:id', async (req, res) => {
+  const p = await DB.getPlayer(req.params.id);
+  if (!p) return res.status(404).json({ error: 'not found' });
+  res.json(p);
+});
+
+app.get('/api/leaderboard', async (req, res) => {
+  const lb = await DB.getLeaderboard(20);
+  res.json(lb);
+});
+
+app.get('/api/history/:id', async (req, res) => {
+  const h = await DB.getGameHistory(req.params.id, 20);
+  res.json(h);
+});
+
+app.get('/api/lobby', (req, res) => {
+  // Return list of open (lobby phase) rooms for the home lobby
+  const open = Object.values(rooms)
+    .filter(r => r.phase === 'lobby' && r.clients.length > 0 && r.isPublic)
+    .map(r => ({
+      code: r.code,
+      game: r.game,
+      hostName: r.clients.find(c => c.isHost)?.name || '?',
+      playerCount: r.clients.length,
+      maxPlayers: r.maxPlayers || 8,
+    }));
+  res.json(open);
+});
+
+// ==================== KEEPALIVE ====================
 setInterval(() => {
   wss.clients.forEach(ws => {
     if (ws.isAlive === false) { ws.terminate(); return; }
@@ -20,6 +296,36 @@ setInterval(() => {
     ws.ping();
   });
 }, 20000);
+
+// ==================== HOME LOBBY (pre-room chat + invites) ====================
+// Players in the "home lobby" — before joining a room
+const homeLobby = {
+  clients: new Map(), // clientId -> { ws, name, color, dbId }
+  chat: [],           // last 50 messages
+};
+
+function homeLobbyCast(data, skipId = null) {
+  for (const [id, c] of homeLobby.clients) {
+    if (id !== skipId) send(c.ws, data);
+  }
+}
+
+function homeLobbyState() {
+  return {
+    players: [...homeLobby.clients.values()].map(c => ({
+      id: c.clientId, name: c.name, color: c.color,
+      inRoom: c.inRoom || null,
+    })),
+    openRooms: Object.values(rooms)
+      .filter(r => r.phase === 'lobby' && r.isPublic)
+      .map(r => ({
+        code: r.code, game: r.game,
+        hostName: r.clients.find(c => c.isHost)?.name || '?',
+        playerCount: r.clients.length,
+      })),
+    chat: homeLobby.chat.slice(-30),
+  };
+}
 
 // ==================== ROOMS ====================
 const rooms = {};
@@ -38,8 +344,9 @@ function roomState(code) {
     code,
     game: r.game,
     phase: r.phase,
-    players: r.clients.map(c => ({ id: c.id, name: c.name, isHost: c.isHost, score: c.score || 0 })),
+    players: r.clients.map(c => ({ id: c.id, name: c.name, isHost: c.isHost, score: c.score || 0, color: c.color })),
     settings: r.settings,
+    isPublic: r.isPublic || false,
   };
 }
 
@@ -58,34 +365,99 @@ wss.on('connection', (ws) => {
 
   const clientId = uuidv4();
   let room = null;
+  let inHomeLobby = false;
 
   ws.on('message', (raw) => {
     let msg;
     try { msg = JSON.parse(raw.toString()); } catch { return; }
-    
+
     if (msg.type === 'PING') { send(ws, { type: 'PONG' }); return; }
 
+    // ── HOME LOBBY ──────────────────────────────────────────────────────
+    if (msg.type === 'HOME_JOIN') {
+      // Player opens the app and enters the home lobby
+      const name = (msg.name || 'Gast').slice(0, 20);
+      const color = msg.color || '#4d96ff';
+      const dbId = msg.dbId || null;
+      homeLobby.clients.set(clientId, { clientId, ws, name, color, dbId, inRoom: null });
+      inHomeLobby = true;
+      if (dbId) DB.upsertPlayer(dbId, name, color);
+      send(ws, { type: 'HOME_STATE', state: homeLobbyState(), yourId: clientId });
+      homeLobbyCast({ type: 'HOME_STATE', state: homeLobbyState() }, clientId);
+      return;
+    }
+
+    if (msg.type === 'HOME_CHAT') {
+      if (!inHomeLobby) return;
+      const c = homeLobby.clients.get(clientId);
+      if (!c || !msg.text?.trim()) return;
+      const m = {
+        id: uuidv4(), senderId: clientId, senderName: c.name,
+        senderColor: c.color, text: msg.text.slice(0, 200), time: Date.now(),
+      };
+      homeLobby.chat.push(m);
+      if (homeLobby.chat.length > 50) homeLobby.chat.shift();
+      homeLobbyCast({ type: 'HOME_CHAT', message: m });
+      send(ws, { type: 'HOME_CHAT', message: m });
+      return;
+    }
+
+    if (msg.type === 'INVITE') {
+      // Host invites a specific player from the home lobby to join their room
+      if (!room) return;
+      const host = room.clients.find(c => c.id === clientId);
+      if (!host?.isHost) return;
+      const target = homeLobby.clients.get(msg.targetId);
+      if (!target) return;
+      send(target.ws, {
+        type: 'INVITE',
+        fromName: host.name,
+        fromColor: host.color || '#4d96ff',
+        game: room.game,
+        code: room.code,
+        roomCode: room.code,
+      });
+      return;
+    }
+
+    // ── ROOM ACTIONS ────────────────────────────────────────────────────
     if (msg.type === 'CREATE_ROOM') {
       let code;
       do { code = genCode(); } while (rooms[code]);
-      rooms[code] = { code, game: msg.game || 'cah', phase: 'lobby', clients: [], gameState: null, settings: { maxPoints: 7 }, chat: [] };
+      rooms[code] = {
+        code, game: msg.game || 'cah', phase: 'lobby',
+        clients: [], gameState: null,
+        settings: { maxPoints: 7 },
+        chat: [],
+        isPublic: msg.isPublic !== false, // public by default
+        startedAt: Date.now(),
+      };
       room = rooms[code];
-      const client = { id: clientId, ws, name: (msg.playerName || 'Host').slice(0, 20), isHost: true, score: 0 };
+      const color = msg.color || '#FF6B6B';
+      const client = { id: clientId, ws, name: (msg.playerName || 'Host').slice(0, 20), isHost: true, score: 0, color, dbId: msg.dbId || null };
       room.clients.push(client);
+      // Update home lobby
+      const hl = homeLobby.clients.get(clientId);
+      if (hl) { hl.inRoom = code; homeLobbyCast({ type: 'HOME_STATE', state: homeLobbyState() }); }
       send(ws, { type: 'ROOM_JOINED', yourId: clientId, roomState: roomState(code) });
+      if (client.dbId) DB.upsertPlayer(client.dbId, client.name, color);
       return;
     }
 
     if (msg.type === 'JOIN_ROOM') {
       const code = (msg.code || '').toUpperCase().trim();
-      if (!rooms[code]) { send(ws, { type: 'ERROR', message: 'Room niet gevonden!' }); return; }
+      if (!rooms[code]) { send(ws, { type: 'ERROR', message: 'Kamer niet gevonden!' }); return; }
       room = rooms[code];
-      const client = { id: clientId, ws, name: (msg.playerName || 'Speler').slice(0, 20), isHost: false, score: 0 };
+      const color = msg.color || '#4d96ff';
+      const client = { id: clientId, ws, name: (msg.playerName || 'Speler').slice(0, 20), isHost: false, score: 0, color, dbId: msg.dbId || null };
       room.clients.push(client);
+      const hl = homeLobby.clients.get(clientId);
+      if (hl) { hl.inRoom = code; homeLobbyCast({ type: 'HOME_STATE', state: homeLobbyState() }); }
       send(ws, { type: 'ROOM_JOINED', yourId: clientId, roomState: roomState(code) });
       send(ws, { type: 'CHAT_HISTORY', messages: room.chat.slice(-30) });
       bcast(code, { type: 'ROOM_UPDATE', roomState: roomState(code) }, clientId);
       bcast(code, { type: 'SYS', text: `${client.name} heeft de kamer betreden!` }, clientId);
+      if (client.dbId) DB.upsertPlayer(client.dbId, client.name, color);
       return;
     }
 
@@ -98,7 +470,7 @@ wss.on('connection', (ws) => {
       room.chat.push(m);
       if (room.chat.length > 100) room.chat.shift();
       bcast(room.code, { type: 'CHAT', message: m });
-      send(ws, { type: 'CHAT', message: m }); // also send back to sender
+      send(ws, { type: 'CHAT', message: m });
       return;
     }
 
@@ -106,12 +478,9 @@ wss.on('connection', (ws) => {
       const host = room.clients.find(c => c.id === clientId);
       if (!host?.isHost) return;
       room.game = msg.game; room.gameState = null; room.phase = 'lobby';
-      // Reset scores when going back to lobby
       room.clients.forEach(c => { c.score = 0; });
-      // Broadcast to ALL clients including host
       const update = { type: 'ROOM_UPDATE', roomState: roomState(room.code) };
-      bcast(room.code, update);
-      send(ws, update);
+      bcast(room.code, update); send(ws, update);
       return;
     }
 
@@ -119,6 +488,7 @@ wss.on('connection', (ws) => {
       const host = room.clients.find(c => c.id === clientId);
       if (!host?.isHost) return;
       room.settings = { ...room.settings, ...msg.settings };
+      if (msg.settings.isPublic !== undefined) room.isPublic = msg.settings.isPublic;
       bcast(room.code, { type: 'ROOM_UPDATE', roomState: roomState(room.code) });
       send(ws, { type: 'ROOM_UPDATE', roomState: roomState(room.code) });
       return;
@@ -130,9 +500,26 @@ wss.on('connection', (ws) => {
       else if (room.game === 'monopoly') handleMonopoly(room, clientId, ws, msg);
       return;
     }
+
+    // DB actions from client
+    if (msg.type === 'DB_UPDATE_CAH') {
+      const c = room.clients.find(c => c.id === clientId);
+      if (c?.dbId) DB.updateCAHStats(c.dbId, msg.data);
+      return;
+    }
+    if (msg.type === 'DB_UPDATE_MONO') {
+      const c = room.clients.find(c => c.id === clientId);
+      if (c?.dbId) DB.updateMonoStats(c.dbId, msg.data);
+      return;
+    }
   });
 
   ws.on('close', () => {
+    // Leave home lobby
+    if (inHomeLobby) {
+      homeLobby.clients.delete(clientId);
+      homeLobbyCast({ type: 'HOME_STATE', state: homeLobbyState() });
+    }
     if (!room) return;
     const idx = room.clients.findIndex(c => c.id === clientId);
     if (idx === -1) return;
@@ -142,6 +529,7 @@ wss.on('connection', (ws) => {
     if (leaving.isHost) room.clients[0].isHost = true;
     bcast(room.code, { type: 'ROOM_UPDATE', roomState: roomState(room.code) });
     bcast(room.code, { type: 'SYS', text: `${leaving.name} heeft de kamer verlaten.` });
+    homeLobbyCast({ type: 'HOME_STATE', state: homeLobbyState() });
   });
 
   ws.on('error', () => {});

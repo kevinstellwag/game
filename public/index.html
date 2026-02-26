@@ -463,6 +463,55 @@ input,textarea,button{font-family:'Nunito',sans-serif}
 .spin-result-icon{font-size:3.5rem;margin-bottom:0.4rem;animation:bounce 0.4s ease}
 @keyframes bounce{0%{transform:scale(0.5);opacity:0}60%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
 
+
+/* ===== ACCOUNT / LEADERBOARD ===== */
+#screen-account{background:var(--bg);overflow-y:auto}
+.acc-wrap{max-width:520px;margin:0 auto;padding:1.5rem 1.25rem}
+.acc-header{display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem}
+.acc-avatar{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:900;flex-shrink:0;border:3px solid var(--accent2)}
+.acc-title{flex:1}
+.acc-name{font-family:Bangers,cursive;font-size:2rem;letter-spacing:2px}
+.acc-sub{color:var(--text2);font-size:0.82rem;margin-top:2px}
+.acc-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:1.5rem}
+.acc-stat{background:var(--card);border-radius:12px;padding:0.9rem 0.5rem;text-align:center;border:1px solid var(--border)}
+.acc-stat-val{font-family:Bangers,cursive;font-size:1.8rem;color:var(--accent2);line-height:1}
+.acc-stat-lbl{font-size:0.65rem;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-top:3px}
+.acc-section{margin-bottom:1.5rem}
+.acc-section-title{font-family:Bangers,cursive;font-size:1.3rem;letter-spacing:2px;color:var(--accent2);margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem}
+/* leaderboard */
+.lb-row{display:flex;align-items:center;gap:0.75rem;padding:0.6rem 0.8rem;background:var(--card);border-radius:10px;border:1px solid var(--border);margin-bottom:0.4rem;transition:all 0.15s}
+.lb-row.lb-me{border-color:var(--accent2);background:rgba(255,217,61,0.06)}
+.lb-rank{font-family:Bangers,cursive;font-size:1.4rem;width:32px;text-align:center;flex-shrink:0}
+.lb-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:0.9rem;flex-shrink:0}
+.lb-info{flex:1;min-width:0}
+.lb-pname{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb-psub{font-size:0.68rem;color:var(--text2);margin-top:1px}
+.lb-score{font-family:Bangers,cursive;font-size:1.5rem;color:var(--accent3);letter-spacing:1px}
+/* achievements */
+.ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:0.6rem}
+.ach-card{background:var(--card);border-radius:12px;padding:0.75rem;text-align:center;border:2px solid var(--border);transition:all 0.2s;position:relative;overflow:hidden}
+.ach-card.unlocked{border-color:var(--accent2);background:rgba(255,217,61,0.07)}
+.ach-card.locked{opacity:0.4;filter:grayscale(0.8)}
+.ach-icon{font-size:1.8rem;margin-bottom:4px;line-height:1}
+.ach-name{font-weight:900;font-size:0.72rem;line-height:1.2}
+.ach-desc{font-size:0.62rem;color:var(--text2);margin-top:3px;line-height:1.3}
+.ach-new{position:absolute;top:4px;right:4px;background:var(--accent);color:white;font-size:0.5rem;font-weight:900;padding:1px 4px;border-radius:4px;text-transform:uppercase}
+/* account button on home */
+.btn-account{display:flex;align-items:center;gap:0.5rem;padding:0.6rem 1rem;background:var(--card);border:2px solid var(--border);border-radius:10px;color:var(--text);font-weight:700;cursor:pointer;transition:all 0.15s;margin-bottom:0.75rem;width:100%;justify-content:center}
+.btn-account:hover{border-color:var(--accent2);background:rgba(255,217,61,0.08)}
+.acc-badge{background:var(--accent2);color:#111;font-size:0.6rem;font-weight:900;padding:1px 5px;border-radius:8px;margin-left:auto}
+/* login screen */
+.login-box{background:var(--card);border-radius:var(--r);padding:1.5rem;border:1px solid var(--border);animation:slideUp 0.25s ease}
+.login-box h2{font-family:Bangers,cursive;font-size:1.8rem;letter-spacing:2px;color:var(--accent2);margin-bottom:0.3rem;text-align:center}
+.login-box p{color:var(--text2);font-size:0.82rem;text-align:center;margin-bottom:1.25rem}
+.or-divider{text-align:center;color:var(--text2);font-size:0.8rem;margin:0.6rem 0;position:relative}
+.or-divider::before,.or-divider::after{content:'';position:absolute;top:50%;width:40%;height:1px;background:var(--border)}
+.or-divider::before{left:0}.or-divider::after{right:0}
+.btn-guest{width:100%;padding:0.7rem;background:transparent;border:2px solid var(--border);border-radius:10px;color:var(--text2);font-weight:700;cursor:pointer;transition:all 0.15s}
+.btn-guest:hover{border-color:var(--text2);color:var(--text)}
+.cah-score-toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:linear-gradient(135deg,#1a1a2e,#2d2d4a);border:3px solid var(--accent2);border-radius:20px;padding:1.5rem 2rem;text-align:center;animation:popIn 0.4s cubic-bezier(0.34,1.56,0.64,1);pointer-events:none}
+.cah-score-toast h2{font-family:Bangers,cursive;font-size:2rem;color:var(--accent2);letter-spacing:3px}
+.cah-score-toast p{color:var(--text2);font-size:0.85rem;margin-top:0.3rem}
 </style>
 </head>
 <body>
@@ -476,6 +525,11 @@ input,textarea,button{font-family:'Nunito',sans-serif}
       <h1 class="logo-title">PARTY<span>GAMES</span></h1>
       <p class="logo-sub">Voor slechte mensen met goede vrienden.</p>
     </div>
+    <button class="btn-account" onclick="Account.openScreen()">
+      <span id="acc-btn-avatar" style="font-size:1.4rem">👤</span>
+      <span id="acc-btn-name">Account / Leaderboard</span>
+      <span id="acc-btn-badge" class="acc-badge hidden">0</span>
+    </button>
     <div class="home-btns">
       <button class="btn-home btn-create" onclick="UI.showForm('create')">
         <span>🚀</span><span>Kamer Aanmaken</span>
@@ -563,6 +617,18 @@ input,textarea,button{font-family:'Nunito',sans-serif}
         <button onclick="App.sendChat()">➤</button>
       </div>
     </div>
+  </div>
+</div>
+
+
+<!-- ===== ACCOUNT ===== -->
+<div id="screen-account" class="screen">
+  <div class="acc-wrap">
+    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.25rem">
+      <button class="btn-back" style="width:auto;padding:0.5rem 1rem" onclick="show('screen-home')">← Terug</button>
+      <h1 style="font-family:Bangers,cursive;font-size:1.6rem;letter-spacing:2px;color:var(--accent2)">PROFIEL</h1>
+    </div>
+    <div id="acc-content"><!-- filled by JS --></div>
   </div>
 </div>
 
@@ -888,6 +954,333 @@ document.addEventListener('DOMContentLoaded', () => {
   initGamePickers();
 });
 
+
+
+// ===== ACCOUNT & LEADERBOARD SYSTEM =====
+const ACHIEVEMENTS = [
+  { id:'first_win',   icon:'🏆', name:'Eerste Winst',      desc:'Win je eerste potje CAH',               condition: s => s.cahWins >= 1 },
+  { id:'five_wins',   icon:'🥇', name:'Vijf Op Rij',       desc:'Win 5 potjes CAH',                      condition: s => s.cahWins >= 5 },
+  { id:'czar_boss',   icon:'👑', name:'Kaart Tsaar',       desc:'Kies 10 winnende kaarten als Tsaar',    condition: s => s.czarPicks >= 10 },
+  { id:'degen',       icon:'🤮', name:'Volslagen Degen',   desc:'Speel 50 rondes CAH',                   condition: s => s.cahRoundsPlayed >= 50 },
+  { id:'monopolist',  icon:'🏦', name:'Vastgoedmagnaat',   desc:'Koop 20 panden in Monopoly',            condition: s => s.monoPropsBought >= 20 },
+  { id:'jailbird',    icon:'🔒', name:'Stamgast van de Bak', desc:'Ga 5x naar de gevangenis',            condition: s => s.monoJailVisits >= 5 },
+  { id:'banker',      icon:'💰', name:'Geldwolf',          desc:'Verdien €50.000 in Monopoly',           condition: s => s.monoMoneyEarned >= 50000 },
+  { id:'social',      icon:'👥', name:'Sociaal Beest',     desc:'Speel met 4+ spelers in één potje',     condition: s => s.maxPlayersInGame >= 4 },
+  { id:'streaker',    icon:'🔥', name:'Op Stoom',          desc:'Win 3 rondes op rij in CAH',            condition: s => s.cahBestStreak >= 3 },
+  { id:'loser',       icon:'🚫', name:'Gecanceled',        desc:'Verlies 10x een ronde CAH',             condition: s => s.cahLoserRounds >= 10 },
+  { id:'nightowl',    icon:'🦉', name:'Nachtuil',          desc:'Speel om middernacht',                  condition: s => s.playedAtMidnight === true },
+  { id:'politician',  icon:'🤡', name:'Echte Politicus',   desc:'Verlies 3x zoveel als je wint',        condition: s => s.cahWins >= 1 && s.cahLosses >= s.cahWins * 3 },
+];
+
+const Account = {
+  async load() {
+    try {
+      const r = await window.storage.get('account:profile');
+      return r ? JSON.parse(r.value) : null;
+    } catch { return null; }
+  },
+
+  async save(profile) {
+    try { await window.storage.set('account:profile', JSON.stringify(profile)); }
+    catch(e) { console.error('Save failed', e); }
+  },
+
+  async create(name) {
+    const colors = ['#FF6B6B','#4d96ff','#ffd93d','#6bcb77','#b44fff','#ff9f43','#4ECDC4','#FF8B94'];
+    const profile = {
+      name,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      createdAt: Date.now(),
+      stats: {
+        cahWins:0, cahLosses:0, cahRoundsPlayed:0, czarPicks:0,
+        cahBestStreak:0, cahCurrentStreak:0, cahLoserRounds:0,
+        monoPropsBought:0, monoJailVisits:0, monoMoneyEarned:0,
+        maxPlayersInGame:0, playedAtMidnight:false,
+      },
+      achievements: [],
+      newAchievements: [],
+    };
+    await Account.save(profile);
+    await Account.syncLeaderboard(profile);
+    return profile;
+  },
+
+  async updateCAHStats({ won, czarPicksMade, roundsPlayed, players }) {
+    const p = await Account.load();
+    if (!p) return;
+    const s = p.stats;
+    s.cahRoundsPlayed += roundsPlayed || 0;
+    s.czarPicks += czarPicksMade || 0;
+    s.maxPlayersInGame = Math.max(s.maxPlayersInGame, players || 0);
+    const h = new Date().getHours();
+    if (h >= 0 && h < 4) s.playedAtMidnight = true;
+    if (won) {
+      s.cahWins++;
+      s.cahCurrentStreak++;
+      s.cahBestStreak = Math.max(s.cahBestStreak, s.cahCurrentStreak);
+    } else {
+      s.cahLosses++;
+      s.cahLoserRounds++;
+      s.cahCurrentStreak = 0;
+    }
+    await Account.checkAchievements(p);
+    await Account.save(p);
+    await Account.syncLeaderboard(p);
+    Account.updateHomeButton(p);
+  },
+
+  async updateMonoStats({ propsBought, jailVisits, moneyEarned, players }) {
+    const p = await Account.load();
+    if (!p) return;
+    const s = p.stats;
+    s.monoPropsBought += propsBought || 0;
+    s.monoJailVisits += jailVisits || 0;
+    s.monoMoneyEarned += moneyEarned || 0;
+    s.maxPlayersInGame = Math.max(s.maxPlayersInGame, players || 0);
+    await Account.checkAchievements(p);
+    await Account.save(p);
+  },
+
+  async checkAchievements(profile) {
+    const newUnlocks = [];
+    for (const ach of ACHIEVEMENTS) {
+      if (profile.achievements.includes(ach.id)) continue;
+      if (ach.condition(profile.stats)) {
+        profile.achievements.push(ach.id);
+        if (!profile.newAchievements) profile.newAchievements = [];
+        profile.newAchievements.push(ach.id);
+        newUnlocks.push(ach);
+      }
+    }
+    if (newUnlocks.length > 0) {
+      setTimeout(() => newUnlocks.forEach(a => toast('🏅 Achievement: ' + a.name + '!')), 1500);
+    }
+    return newUnlocks;
+  },
+
+  async syncLeaderboard(profile) {
+    try {
+      const s = profile.stats;
+      const score = s.cahWins * 3 + s.czarPicks + Math.floor(s.monoMoneyEarned / 1000);
+      await window.storage.set('lb:' + profile.name, JSON.stringify({
+        name: profile.name, color: profile.color, score,
+        wins: s.cahWins, achievements: profile.achievements.length,
+      }), true);
+    } catch(e) { console.error('LB sync failed', e); }
+  },
+
+  async loadLeaderboard() {
+    try {
+      const keys = await window.storage.list('lb:', true);
+      if (!keys || !keys.keys) return [];
+      const entries = await Promise.all(keys.keys.slice(0,50).map(async k => {
+        try { const r = await window.storage.get(k, true); return r ? JSON.parse(r.value) : null; }
+        catch { return null; }
+      }));
+      return entries.filter(Boolean).sort((a,b) => b.score - a.score);
+    } catch { return []; }
+  },
+
+  async openScreen() {
+    show('screen-account');
+    const content = document.getElementById('acc-content');
+    content.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text2);font-size:1.5rem">⏳ Laden...</div>';
+    const profile = await Account.load();
+    if (!profile) {
+      Account.renderLogin(content);
+    } else {
+      await Account.renderProfile(content, profile);
+    }
+  },
+
+  renderLogin(el) {
+    el.innerHTML = [
+      '<div class="login-box">',
+      '<h2>🎮 ACCOUNT</h2>',
+      '<p>Maak een account om scores bij te houden, achievements te verdienen en het leaderboard te domineren.</p>',
+      '<label style="display:block;color:var(--text2);font-size:0.75rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:0.25rem">Jouw naam:</label>',
+      '<input type="text" id="acc-login-name" placeholder="Kevin, Jossa, Thomas..." maxlength="20" autocomplete="off"',
+      '  style="width:100%;padding:0.7rem 0.9rem;background:var(--bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:0.95rem;margin-bottom:0.75rem">',
+      '<button class="btn-act" onclick="Account.doCreate()">Account Aanmaken 🚀</button>',
+      '<div class="or-divider">of</div>',
+      '<button class="btn-guest" onclick="show(\'screen-home\')">Verdergaan als gast</button>',
+      '</div>',
+    ].join('\n');
+    setTimeout(() => document.getElementById('acc-login-name') && document.getElementById('acc-login-name').focus(), 100);
+  },
+
+  async doCreate() {
+    const inp = document.getElementById('acc-login-name');
+    const name = inp ? inp.value.trim() : '';
+    if (!name) { toast('Vul je naam in!'); return; }
+    const profile = await Account.create(name);
+    const content = document.getElementById('acc-content');
+    await Account.renderProfile(content, profile);
+    Account.updateHomeButton(profile);
+    toast('🎉 Account aangemaakt! Welkom, ' + name + '!');
+    const cn = document.getElementById('in-create-name');
+    const jn = document.getElementById('in-join-name');
+    if (cn) cn.value = name;
+    if (jn) jn.value = name;
+  },
+
+  async renderProfile(el, profile) {
+    const s = profile.stats;
+    const score = s.cahWins * 3 + s.czarPicks + Math.floor(s.monoMoneyEarned / 1000);
+    const lb = await Account.loadLeaderboard();
+    const rank = lb.findIndex(e => e.name === profile.name) + 1;
+    const medals = ['🥇','🥈','🥉'];
+
+    profile.newAchievements = [];
+    await Account.save(profile);
+    Account.updateHomeButton(profile);
+
+    // Build leaderboard HTML
+    let lbHtml = '';
+    if (lb.length === 0) {
+      lbHtml = '<div style="color:var(--text2);font-size:0.85rem;text-align:center;padding:1.5rem;background:var(--card);border-radius:10px">Nog niemand. Speel een potje!</div>';
+    } else {
+      lbHtml = lb.slice(0,10).map(function(e, i) {
+        const isMe = e.name === profile.name;
+        const initial = e.name.charAt(0).toUpperCase();
+        const meTag = isMe ? ' <span style="color:var(--accent2);font-size:0.7rem">(jij)</span>' : '';
+        return [
+          '<div class="lb-row ' + (isMe ? 'lb-me' : '') + '">',
+          '  <div class="lb-rank">' + (medals[i] || (i+1)) + '</div>',
+          '  <div class="lb-avatar" style="background:' + (e.color||'#4d96ff') + ';color:#111">' + initial + '</div>',
+          '  <div class="lb-info">',
+          '    <div class="lb-pname">' + esc(e.name) + meTag + '</div>',
+          '    <div class="lb-psub">' + (e.wins||0) + ' winsten · ' + (e.achievements||0) + ' achievements</div>',
+          '  </div>',
+          '  <div class="lb-score">' + e.score + '</div>',
+          '</div>',
+        ].join('\n');
+      }).join('\n');
+    }
+
+    // Build achievements HTML
+    const achHtml = ACHIEVEMENTS.map(function(a) {
+      const unlocked = profile.achievements.indexOf(a.id) !== -1;
+      return [
+        '<div class="ach-card ' + (unlocked ? 'unlocked' : 'locked') + '">',
+        '  <div class="ach-icon">' + a.icon + '</div>',
+        '  <div class="ach-name">' + a.name + '</div>',
+        '  <div class="ach-desc">' + a.desc + '</div>',
+        '</div>',
+      ].join('\n');
+    }).join('\n');
+
+    el.innerHTML = [
+      '<div class="acc-header">',
+      '  <div class="acc-avatar" style="background:' + profile.color + ';color:#111">' + profile.name.charAt(0).toUpperCase() + '</div>',
+      '  <div class="acc-title">',
+      '    <div class="acc-name">' + esc(profile.name) + '</div>',
+      '    <div class="acc-sub">' + profile.achievements.length + ' achievements &nbsp;·&nbsp; rank #' + (rank || '?') + ' &nbsp;·&nbsp; ' + score + ' punten</div>',
+      '  </div>',
+      '  <button style="padding:0.4rem 0.7rem;background:var(--card2);border:2px solid var(--border);border-radius:8px;color:var(--text2);cursor:pointer;font-size:0.75rem;font-family:Nunito,sans-serif;flex-shrink:0" onclick="Account.deleteAccount()">🗑️ Reset</button>',
+      '</div>',
+
+      '<div class="acc-stats-grid">',
+      '  <div class="acc-stat"><div class="acc-stat-val">' + s.cahWins + '</div><div class="acc-stat-lbl">CAH Winsten</div></div>',
+      '  <div class="acc-stat"><div class="acc-stat-val">' + s.cahRoundsPlayed + '</div><div class="acc-stat-lbl">Rondes</div></div>',
+      '  <div class="acc-stat"><div class="acc-stat-val">' + s.czarPicks + '</div><div class="acc-stat-lbl">Tsaar Picks</div></div>',
+      '  <div class="acc-stat"><div class="acc-stat-val">' + score + '</div><div class="acc-stat-lbl">Totaal Score</div></div>',
+      '  <div class="acc-stat"><div class="acc-stat-val">' + s.cahBestStreak + '</div><div class="acc-stat-lbl">Best Streak</div></div>',
+      '  <div class="acc-stat"><div class="acc-stat-val">' + s.monoPropsBought + '</div><div class="acc-stat-lbl">Panden</div></div>',
+      '</div>',
+
+      '<div class="acc-section">',
+      '  <div class="acc-section-title">🏆 Leaderboard</div>',
+      lbHtml,
+      '</div>',
+
+      '<div class="acc-section">',
+      '  <div class="acc-section-title">🏅 Achievements (' + profile.achievements.length + '/' + ACHIEVEMENTS.length + ')</div>',
+      '  <div class="ach-grid">' + achHtml + '</div>',
+      '</div>',
+    ].join('\n');
+  },
+
+  async deleteAccount() {
+    if (!confirm('Account resetten? Al je stats en achievements worden gewist.')) return;
+    try {
+      const p = await Account.load();
+      if (p) {
+        await window.storage.delete('account:profile');
+        try { await window.storage.delete('lb:' + p.name, true); } catch {}
+      }
+    } catch {}
+    const content = document.getElementById('acc-content');
+    Account.renderLogin(content);
+    Account.updateHomeButton(null);
+    toast('Account gereset.');
+  },
+
+  updateHomeButton(profile) {
+    const btn = document.getElementById('acc-btn-name');
+    const avatar = document.getElementById('acc-btn-avatar');
+    const badge = document.getElementById('acc-btn-badge');
+    if (!btn) return;
+    if (!profile) {
+      btn.textContent = 'Account / Leaderboard';
+      if (avatar) { avatar.textContent = '👤'; avatar.style.color = ''; }
+      if (badge) badge.classList.add('hidden');
+      return;
+    }
+    const score = profile.stats.cahWins * 3 + profile.stats.czarPicks;
+    btn.textContent = profile.name + '  ·  ' + score + ' pts';
+    if (avatar) { avatar.textContent = profile.name.charAt(0).toUpperCase(); avatar.style.color = profile.color; }
+    const newCount = (profile.newAchievements || []).length;
+    if (badge) {
+      if (newCount > 0) { badge.textContent = newCount + ' nieuw'; badge.classList.remove('hidden'); }
+      else badge.classList.add('hidden');
+    }
+    // Pre-fill name fields
+    const cn = document.getElementById('in-create-name');
+    const jn = document.getElementById('in-join-name');
+    if (cn && !cn.value) cn.value = profile.name;
+    if (jn && !jn.value) jn.value = profile.name;
+  },
+
+  async init() {
+    try {
+      const profile = await Account.load();
+      if (profile) Account.updateHomeButton(profile);
+    } catch {}
+  },
+};
+
+// Hook CAH win/loss tracking into handleMsg
+const _origHandleMsg = handleMsg;
+handleMsg = function(msg) {
+  _origHandleMsg(msg);
+  // Track CAH game end
+  if (msg.type === 'GAME_STATE' && msg.game === 'cah' && msg.state) {
+    const st = msg.state;
+    if (st.phase === 'scores' && st.winner && myId) {
+      Account.updateCAHStats({
+        won: st.winner === myId,
+        czarPicksMade: 0,
+        roundsPlayed: 1,
+        players: st.totalPlayers || 2,
+      });
+    }
+    // Track czar picks
+    if (st.phase === 'scores' && st.lastWinner && st.czar === myId && st.lastWinner !== myId) {
+      Account.load().then(p => {
+        if (!p) return;
+        p.stats.czarPicks = (p.stats.czarPicks || 0) + 1;
+        Account.checkAchievements(p);
+        Account.save(p);
+        Account.syncLeaderboard(p);
+        Account.updateHomeButton(p);
+      });
+    }
+  }
+};
+
+document.addEventListener('DOMContentLoaded', () => Account.init());
+
 </script>
 <script>
 // ===== CARDS AGAINST HUMANITY =====
@@ -900,29 +1293,6 @@ const CAH = {
     else if (state.phase === 'judging') CAH.renderJudging(area, state);
     else if (state.phase === 'scores') CAH.renderScores(area, state);
     else CAH.renderLobby(area);
-  },
-
-  renderCenterLog(state) {
-    const entries = (state.log||[]).slice(0, 6);
-    if (!entries.length) return '<div class="mcl-title">STRAAT<br>VARIANT</div>';
-
-    // Format log entries nicely - extract name and action
-    const fmtLog = (txt) => {
-      // Bold player names (first word if it ends with common patterns)
-      return esc(txt)
-        .replace(/^(🎉|💸|🔒|🏃|👮|🏆|🎲|💰|⚡|📬)/, '<span class="mcl-icon">$1</span>')
-        .replace(/€(\d[\d\.,]*)/g, '<span class="mcl-money">€$1</span>');
-    };
-
-    return `
-      <div class="mcl-title">STRAAT VARIANT</div>
-      <div class="mcl-feed">
-        ${entries.map((l,i) => `
-          <div class="mcl-entry" style="opacity:${1 - i*0.14}">
-            ${fmtLog(l)}
-          </div>`).join('')}
-      </div>
-    `;
   },
 
   renderLobby(area) {
@@ -1083,6 +1453,9 @@ const CAH = {
           ${state.winner ? '🔄 Nieuw Spel' : '➡️ Volgende Ronde'}
         </button>
       ` : '<div class="waiting-txt">Wachten op host...</div>'}
+      <div style="text-align:center;margin-top:0.75rem">
+        <button class="btn-sm" onclick="Account.openScreen()" style="font-size:0.8rem">📊 Leaderboard bekijken</button>
+      </div>
     `;
   },
 

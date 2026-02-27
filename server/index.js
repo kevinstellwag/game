@@ -86,13 +86,16 @@ async function initDB() {
       CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel, created_at ASC);
       CREATE INDEX IF NOT EXISTS idx_friendships_users ON friendships(requester_id, addressee_id);
     `);
-    // Create admin
+    // Create or update admin
+    const adminHash = await new Promise((res,rej)=>crypto.scrypt(ADMIN_PASSWORD,'pg_salt_2024',64,(e,k)=>e?rej(e):res(k.toString('hex'))));
     const adminCheck = await db.query('SELECT id FROM users WHERE username=$1', [ADMIN_USERNAME]);
     if (!adminCheck.rows.length) {
-      const hash = await new Promise((res,rej)=>crypto.scrypt(ADMIN_PASSWORD,'pg_salt_2024',64,(e,k)=>e?rej(e):res(k.toString('hex'))));
-      const r = await db.query('INSERT INTO users (username,password_hash,color,is_admin) VALUES ($1,$2,$3,TRUE) RETURNING id', [ADMIN_USERNAME, hash, '#ff6b6b']);
+      const r = await db.query('INSERT INTO users (username,password_hash,color,is_admin) VALUES ($1,$2,$3,TRUE) RETURNING id', [ADMIN_USERNAME, adminHash, '#ff6b6b']);
       await db.query('INSERT INTO user_stats (user_id) VALUES ($1)', [r.rows[0].id]);
       console.log('[DB] Admin created:', ADMIN_USERNAME);
+    } else {
+      await db.query('UPDATE users SET password_hash=$1, is_admin=TRUE WHERE username=$2', [adminHash, ADMIN_USERNAME]);
+      console.log('[DB] Admin password updated:', ADMIN_USERNAME);
     }
     console.log('[DB] Ready');
   } catch(e) { console.error('[DB] Init error:', e.message); }

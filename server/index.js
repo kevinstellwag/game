@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const http = require('http');
 const { Pool } = require('pg');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const app = express();
@@ -1085,7 +1085,6 @@ const WHITE = [
   "vluchtelingen terugsturen met bommen in hun bagage als 'welkomstcadeau'",
   "Syrische vluchtelingen in kampen stoppen en ze langzaam laten sterven van honger",
 ];
-
 
 function shuffle(a) {
   const b = [...a];

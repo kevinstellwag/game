@@ -648,9 +648,9 @@ function onMsg(m){
     if(activeGame){
       const area=document.getElementById('game-area');
       if(!area) return;
-      if(m.game==='cah') CAH.render(m.state);
-      else if(m.game==='poker') Poker.render(m.state);
-      else if(m.game==='monopoly') Mono.render(m.state);
+      if(m.game==='cah') CAH.render(m.state, myId);
+      else if(m.game==='poker') Poker.render(m.state, myId);
+      else if(m.game==='monopoly') Mono.render(m.state, myId);
     }
     return;
   }

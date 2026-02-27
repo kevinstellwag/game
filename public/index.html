@@ -623,7 +623,9 @@ function onMsg(m){
     return;
   }
   if(m.type==='GAME_JOINED'){
-    activeGame={channel:m.channel,game:m.game,isHost:m.isHost,players:m.players||[]};
+    activeGame={channel:m.channel,game:m.game,isHost:m.isHost,players:m.players||[],settings:{maxPoints:7}};
+    myId = myUser?.id || '';
+    myRoomState = { settings: activeGame.settings, players: activeGame.players, code: m.channel, game: m.game };
     showGameOverlay();
     return;
   }
@@ -631,6 +633,7 @@ function onMsg(m){
     if(activeGame){
       if(!activeGame.players.find(p=>p.id===m.player.id))
         activeGame.players.push({id:m.player.id,name:m.player.name,color:m.player.color,isHost:false});
+      if(myRoomState) myRoomState.players = activeGame.players;
       refreshGameLobby();
     }
     return;
@@ -646,12 +649,42 @@ function onMsg(m){
   if(m.type==='GAME_CHAT'){addGameChatMsg(m.message);return;}
   if(m.type==='GAME_STATE'){
     if(activeGame){
+      // Sync game/settings changes
+      if(m.game) activeGame.game = m.game;
+      if(m.state?.settings) activeGame.settings = m.state.settings;
+      if(m.state?.players) activeGame.players = m.state.players;
+      myId = myUser?.id || '';
+      myRoomState = {
+        settings: activeGame.settings || { maxPoints: 7 },
+        players: activeGame.players || [],
+        code: activeGame.channel,
+        game: activeGame.game,
+      };
+      // If phase is lobby (settings changed/player joined), refresh lobby UI
+      if(m.state?.phase === 'lobby'){
+        refreshGameLobby();
+        return;
+      }
       const area=document.getElementById('game-area');
       if(!area) return;
-      if(m.game==='cah') CAH.render(m.state, myId);
-      else if(m.game==='poker') Poker.render(m.state, myId);
-      else if(m.game==='monopoly') Mono.render(m.state, myId);
+      if(m.game==='cah') CAH.render(m.state);
+      else if(m.game==='poker') Poker.render(m.state);
+      else if(m.game==='monopoly') Mono.render(m.state);
     }
+    return;
+  }
+  if(m.type==='GAME_ENDED'){
+    if(activeGame&&activeGame.channel===m.channel){
+      activeGame=null; myRoomState=null;
+      document.getElementById('game-overlay')?.remove();
+      toast('🎮 Spel beëindigd');
+    }
+    // Mark invite messages as finished in chat
+    document.querySelectorAll('.ginv').forEach(el=>{
+      const btn=el.querySelector('.ginv-btn');
+      if(btn){btn.textContent='Gespeeld ✓';btn.disabled=true;btn.style.opacity='0.5';btn.style.cursor='default';}
+      el.style.borderColor='var(--txt2)';
+    });
     return;
   }
   if(m.type==='TOAST'){toast(m.text);return;}
@@ -667,6 +700,7 @@ const App={
   async boot(){
     document.getElementById('s-auth').classList.add('hidden');
     document.getElementById('s-app').classList.remove('hidden');
+    myId = myUser?.id || '';  // init for game scripts
     // Avatar
     const av=document.getElementById('sb-av');
     av.textContent=myUser.username.charAt(0).toUpperCase();
@@ -964,6 +998,9 @@ function refreshGameLobby(){
   if(sub) sub.textContent=(activeGame.players?.length||0)+' spelers';
   const area=document.getElementById('game-area');
   if(!area) return;
+  myRoomState = myRoomState || {};
+  myRoomState.players = activeGame.players;
+  myRoomState.settings = activeGame.settings || { maxPoints: 7 };
   const isHost=activeGame.isHost;
   const playerListHtml=activeGame.players.map(p=>`
     <div class="lp">
@@ -1241,6 +1278,30 @@ document.addEventListener('DOMContentLoaded',async()=>{
   if(ok) App.boot();
 });
 </script>
+
+<script>
+// ===== GAME SHIMS =====
+// Legacy game scripts expect: myId (var), myRoomState (var), isHost(), sendWS(), App.startGame()
+
+var myId = '';            // updated on login + each GAME_STATE
+var myRoomState = null;   // updated on each GAME_STATE
+
+function isHost() { return activeGame?.isHost || false; }
+
+// sendWS used by game scripts for actions
+function sendWS(data) {
+  if (data.type === 'GAME_ACTION' && !data.channel) {
+    data = { ...data, channel: activeGame?.channel };
+  }
+  wsSend(data);
+}
+
+// App.startGame called from game script lobby buttons
+window.App = window.App || {};
+window.App.startGame = function() {
+  wsSend({ type: 'GAME_ACTION', channel: activeGame?.channel, action: 'START_GAME' });
+};
+</script>
 <script>
 
 // ===== CARDS AGAINST HUMANITY =====
@@ -1249,10 +1310,10 @@ const CAH = {
     const area = document.getElementById('game-area');
     if (!area) return;
 
-    if (state.phase === 'playing') CAH.renderPlaying(area, state, myId);
-    else if (state.phase === 'judging') CAH.renderJudging(area, state, myId);
-    else if (state.phase === 'scores') CAH.renderScores(area, state, myId);
-    else CAH.renderLobby(area, state, myId);
+    if (state.phase === 'playing') CAH.renderPlaying(area, state);
+    else if (state.phase === 'judging') CAH.renderJudging(area, state);
+    else if (state.phase === 'scores') CAH.renderScores(area, state);
+    else CAH.renderLobby(area);
   },
 
   renderLobby(area) {
@@ -1271,7 +1332,7 @@ const CAH = {
     `;
   },
 
-  renderPlaying(area, state, myId) {
+  renderPlaying(area, state) {
     const isCzar = state.czar === myId;
     const submitted = state.hasSubmitted;
     const submittedCount = state.submittedIds?.length || 0;

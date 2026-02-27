@@ -467,6 +467,7 @@ wss.on('connection', (ws) => {
       if (!session) return;
       const clientPlayer = session.players.find(p=>p.userId===ws._userId);
       if (!clientPlayer) return;
+      const clientId = clientPlayer.userId || clientPlayer.id; // use userId as game identifier
       // Handle game switch
       if (msg.action==='SWITCH_GAME') {
         if (!clientPlayer.isHost) return;
@@ -475,9 +476,9 @@ wss.on('connection', (ws) => {
         broadcastGameLobby(session);
         return;
       }
-      if (session.game==='cah') handleCAH(session, clientPlayer.id, ws, msg);
-      else if (session.game==='poker') handlePoker(session, clientPlayer.id, ws, msg);
-      else if (session.game==='monopoly') handleMonopoly(session, clientPlayer.id, ws, msg);
+      if (session.game==='cah') handleCAH(session, clientId, ws, msg);
+      else if (session.game==='poker') handlePoker(session, clientId, ws, msg);
+      else if (session.game==='monopoly') handleMonopoly(session, clientId, ws, msg);
       return;
     }
 
@@ -528,11 +529,15 @@ function handleLeaveGame(ws, disconnected=false) {
   const session = gameSessions.get(channel);
   if (!session) return;
   const idx = session.players.findIndex(p=>p.ws===ws);
-  if (idx===-1) return;
+  if (idx===-1) { ws._gameChannel = null; return; }
   const leaving = session.players[idx];
   session.players.splice(idx,1);
   ws._gameChannel = null;
-  if (session.players.length===0) { gameSessions.delete(channel); return; }
+  if (session.players.length===0) {
+    gameSessions.delete(channel);
+    broadcastToChannel(channel, { type:'GAME_ENDED', game:session.game, channel });
+    return;
+  }
   if (leaving.isHost) session.players[0].isHost = true;
   session.players.forEach(p=>send(p.ws,{type:'GAME_PLAYER_LEFT',userId:ws._userId,name:leaving.name}));
 }
@@ -540,6 +545,13 @@ function handleLeaveGame(ws, disconnected=false) {
 function broadcastGameLobby(session) {
   const data = { type:'GAME_STATE', game:session.game, state:{ phase:'lobby', players:session.players.map(p=>({id:p.id,userId:p.userId,name:p.name,color:p.color,isHost:p.isHost,score:p.score})), settings:session.settings } };
   session.players.forEach(p=>send(p.ws, data));
+}
+
+function broadcastGameEnded(session, reason='') {
+  const data = { type:'GAME_ENDED', game:session.game, channel:session.channel, reason };
+  session.players.forEach(p=>send(p.ws, data));
+  // Also notify channel subscribers
+  broadcastToChannel(session.channel, { type:'GAME_ENDED', game:session.game, channel:session.channel });
 }
 
 app.get('/health',(req,res)=>res.json({ok:true,online:onlineUsers.size,sessions:gameSessions.size}));
@@ -989,27 +1001,29 @@ function cahBroadcast(room) {
   const gs = room.gameState;
   const rs = roomState(room.code);
   room.clients.forEach(c => {
+    const cid = c.userId || c.id;
     const showSubs = gs.phase === 'judging' || gs.phase === 'scores';
     send(c.ws, {
       type: 'GAME_STATE', game: 'cah', roomState: rs,
       state: {
         phase: gs.phase, round: gs.round,
         czar: gs.czar,
-        czarName: room.clients.find(cl=>cl.id===gs.czar)?.name || '?',
+        czarName: room.clients.find(cl=>(cl.userId||cl.id)===gs.czar)?.name || '?',
         currentBlack: gs.currentBlack,
         submissions: showSubs ? gs.submissions : {},
         submittedIds: Object.keys(gs.submissions),
         scores: gs.scores,
         winner: gs.winner,
         lastWinner: gs.lastWinner,
-        lastWinnerName: room.clients.find(cl=>cl.id===gs.lastWinner)?.name || '?',
+        lastWinnerName: room.clients.find(cl=>(cl.userId||cl.id)===gs.lastWinner)?.name || '?',
         lastWinningCard: gs.lastWinningCard,
         lastBlackCard: gs.lastBlackCard,
-        myHand: gs.hands[c.id] || [],
-        hasSubmitted: !!gs.submissions[c.id],
-        mySubmission: gs.submissions[c.id] || null,
+        myHand: gs.hands[cid] || [],
+        hasSubmitted: !!gs.submissions[cid],
+        mySubmission: gs.submissions[cid] || null,
         totalPlayers: room.clients.length,
         maxPoints: room.settings.maxPoints || 7,
+        settings: room.settings,
       }
     });
   });
@@ -1020,7 +1034,7 @@ function startCAH(room) {
   const extra_w = room.settings.customWhiteCards || [];
   const bDeck = shuffle([...extra_b, ...BLACK]);
   const wDeck = shuffle([...extra_w, ...WHITE]);
-  const players = room.clients.map(c=>c.id);
+  const players = room.clients.map(c=>c.userId||c.id);
   const hands = {};
   let wi = 0;
   players.forEach(p => { hands[p] = wDeck.slice(wi, wi+7); wi+=7; });
@@ -1035,7 +1049,7 @@ function startCAH(room) {
 }
 
 function handleCAH(room, clientId, ws, msg) {
-  const client = room.clients.find(c=>c.id===clientId);
+  const client = room.clients.find(c=>(c.userId||c.id)===clientId);
   if (msg.action === 'START_GAME') { if (client?.isHost) startCAH(room); return; }
   if (msg.action === 'ADD_CARD') {
     if (!client?.isHost) return;
@@ -1050,7 +1064,7 @@ function handleCAH(room, clientId, ws, msg) {
     if (!gs.hands[clientId]?.includes(msg.card)) return;
     gs.submissions[clientId] = msg.card;
     gs.hands[clientId] = gs.hands[clientId].filter(c=>c!==msg.card);
-    if (room.clients.filter(c=>c.id!==gs.czar).every(c=>gs.submissions[c.id])) gs.phase='judging';
+    if (room.clients.filter(c=>(c.userId||c.id)!==gs.czar).every(c=>gs.submissions[c.userId||c.id])) gs.phase='judging';
     cahBroadcast(room); return;
   }
   if (msg.action === 'PICK_WINNER') {
@@ -1058,7 +1072,7 @@ function handleCAH(room, clientId, ws, msg) {
     const winnerId = Object.entries(gs.submissions).find(([,c])=>c===msg.card)?.[0];
     if (!winnerId) return;
     gs.scores[winnerId]=(gs.scores[winnerId]||0)+1;
-    room.clients.forEach(c=>{c.score=gs.scores[c.id]||0;});
+    room.clients.forEach(c=>{c.score=gs.scores[c.userId||c.id]||0;});
     gs.lastWinner=winnerId; gs.lastWinningCard=msg.card; gs.lastBlackCard=gs.currentBlack; gs.phase='scores';
     if (gs.scores[winnerId]>=(room.settings.maxPoints||7)) gs.winner=winnerId;
     cahBroadcast(room); return;
@@ -1066,7 +1080,7 @@ function handleCAH(room, clientId, ws, msg) {
   if (msg.action === 'NEXT_ROUND') {
     if (gs.phase!=='scores'||!client?.isHost) return;
     if (gs.winner) { startCAH(room); return; }
-    const players = room.clients.map(c=>c.id);
+    const players = room.clients.map(c=>c.userId||c.id);
     players.forEach(pid => {
       gs.hands[pid] = gs.hands[pid]||[];
       while (gs.hands[pid].length < 7 && gs.whiteDeck.length > 0) gs.hands[pid].push(gs.whiteDeck.shift());
@@ -1090,12 +1104,13 @@ function pokerBroadcast(room) {
   const gs = room.gameState;
   const rs = roomState(room.code);
   room.clients.forEach(c => {
+    const cid = c.userId || c.id;
     const myHand = gs.phase==='showdown' 
       ? Object.fromEntries(Object.entries(gs.hands||{}).map(([id,h])=>[id,h]))
-      : { [c.id]: gs.hands?.[c.id]||[] };
+      : { [cid]: gs.hands?.[cid]||[] };
     send(c.ws, {
       type:'GAME_STATE', game:'poker', roomState:rs,
-      state:{ ...gs, hands:undefined, deck:undefined, myHand, currentPlayerName: room.clients.find(cl=>cl.id===gs.players?.[gs.currentPlayerIndex])?.name || '?' }
+      state:{ ...gs, hands:undefined, deck:undefined, myHand, currentPlayerName: room.clients.find(cl=>(cl.userId||cl.id)===gs.players?.[gs.currentPlayerIndex])?.name || '?', settings: room.settings }
     });
   });
 }
@@ -1103,7 +1118,7 @@ function pokerBroadcast(room) {
 function startPokerHand(room) {
   const prevChips = room.gameState?.chips;
   const prevDealer = room.gameState?.dealerIndex ?? -1;
-  const players = room.clients.map(c=>c.id);
+  const players = room.clients.map(c=>c.userId||c.id);
   const chips = prevChips || Object.fromEntries(players.map(p=>[p,1000]));
   const blind = 10;
   const deck = makeDeck();
@@ -1156,7 +1171,7 @@ function pokerAdvance(room) {
 }
 
 function handlePoker(room, clientId, ws, msg) {
-  const client = room.clients.find(c=>c.id===clientId);
+  const client = room.clients.find(c=>(c.userId||c.id)===clientId);
   if (msg.action==='START_GAME') { if(client?.isHost) startPokerHand(room); return; }
   if (msg.action==='NEXT_HAND') { if(client?.isHost) startPokerHand(room); return; }
   const gs=room.gameState; if(!gs||gs.phase==='showdown') return;
@@ -1312,12 +1327,15 @@ function monoSpin() {
 
 function monoBroadcast(room) {
   const rs = roomState(room.code);
-  room.clients.forEach(c => send(c.ws, {type:'GAME_STATE', game:'monopoly', roomState:rs, state:room.gameState}));
+  room.clients.forEach(c => {
+    const cid = c.userId || c.id;
+    send(c.ws, {type:'GAME_STATE', game:'monopoly', roomState:rs, state:{...room.gameState, myId:cid}, settings:room.settings});
+  });
 }
 
 function monoApplyCard(room, pid, card) {
   const gs = room.gameState;
-  const name = room.clients.find(c=>c.id===pid)?.name||'?';
+  const name = room.clients.find(c=>(c.userId||c.id)===pid)?.name||'?';
   const eff = card.eff;
   if (eff.t==='money') {
     gs.money[pid] = (gs.money[pid]||0) + eff.v;
@@ -1370,7 +1388,7 @@ function monoCheckBankruptcy(gs, pid) {
 }
 
 function startMonopoly(room) {
-  const players = room.clients.map(c=>c.id);
+  const players = room.clients.map(c=>c.userId||c.id);
   // NPC cop: fake player 'cop' appended at end of player list
   const copId = 'cop';
   const allPlayers = [...players, copId];
@@ -1418,7 +1436,7 @@ function monoCopTurn(room) {
     gs.phase = 'spinning';
     gs.popup = {
       kind: 'spin_intro',
-      victims: victims.map(v => room.clients.find(c=>c.id===v)?.name||'?')
+      victims: victims.map(v => room.clients.find(c=>(c.userId||c.id)===v)?.name||'?')
     };
     gs.log.unshift(`👮 Agent staat op hetzelfde vak als ${gs.popup.victims.join(', ')}! RAD DRAAIEN!`);
     monoBroadcast(room);
@@ -1438,7 +1456,7 @@ function monoCopDone(room) {
   while (gs.bankrupt[gs.realPlayers[ni]] && guard++ < gs.realPlayers.length) ni = (ni+1) % gs.realPlayers.length;
   gs.currentIdx = ni;
   gs.current = gs.realPlayers[ni];
-  const nextName = room.clients.find(c=>c.id===gs.current)?.name||'?';
+  const nextName = room.clients.find(c=>(c.userId||c.id)===gs.current)?.name||'?';
   gs.log.unshift(`▶️ ${nextName} is aan de beurt.`);
   monoBroadcast(room);
 }
@@ -1452,7 +1470,7 @@ function monoEndTurn(room) {
   if (alive.length <= 1) {
     gs.winner = alive[0] || gs.realPlayers[0];
     gs.phase = 'gameover';
-    gs.log.unshift('🏆 ' + (room.clients.find(c=>c.id===gs.winner)?.name||'?') + ' WINT HET SPEL!');
+    gs.log.unshift('🏆 ' + (room.clients.find(c=>(c.userId||c.id)===gs.winner)?.name||'?') + ' WINT HET SPEL!');
     monoBroadcast(room); return;
   }
 
@@ -1479,13 +1497,13 @@ function monoEndTurn(room) {
 
   gs.current = gs.realPlayers[ni];
   gs.currentIdx = ni;
-  const nextName = room.clients.find(c=>c.id===gs.current)?.name||'?';
+  const nextName = room.clients.find(c=>(c.userId||c.id)===gs.current)?.name||'?';
   gs.log.unshift(`▶️ ${nextName} is aan de beurt.`);
   monoBroadcast(room);
 }
 
 function handleMonopoly(room, clientId, ws, msg) {
-  const client = room.clients.find(c=>c.id===clientId);
+  const client = room.clients.find(c=>(c.userId||c.id)===clientId);
   if (msg.action==='START_GAME') { if(client?.isHost) startMonopoly(room); return; }
   const gs = room.gameState; if (!gs) return;
   // Only allow actions from current player (cop is NPC so nobody can act as cop)
@@ -1553,7 +1571,7 @@ function handleMonopoly(room, clientId, ws, msg) {
       gs.phase = 'popup';
     } else if ((sq.t==='prop'||sq.t==='rr'||sq.t==='util') && gs.props[newPos] && gs.props[newPos].ownerId!==clientId) {
       const rent = monoCalcRent(newPos, gs);
-      const ownerName = room.clients.find(c=>c.id===gs.props[newPos].ownerId)?.name||'?';
+      const ownerName = room.clients.find(c=>(c.userId||c.id)===gs.props[newPos].ownerId)?.name||'?';
       gs.pendingRent = {sqIdx:newPos, rent, ownerId:gs.props[newPos].ownerId};
       gs.popup = {kind:'rent_card', sq, rent, ownerName};
       gs.phase = 'dash';
@@ -1608,7 +1626,7 @@ function handleMonopoly(room, clientId, ws, msg) {
       const pay = pr.rent * 2;
       gs.money[clientId] = (gs.money[clientId]||0) - pay;
       gs.money[pr.ownerId] = (gs.money[pr.ownerId]||0) + pay;
-      const ownerName = room.clients.find(c=>c.id===pr.ownerId)?.name||'?';
+      const ownerName = room.clients.find(c=>(c.userId||c.id)===pr.ownerId)?.name||'?';
       gs.log.unshift(`${name} probeerde te dashen maar GEPAKT! Betaalt DUBBEL €${pay} aan ${ownerName} 😂`);
       monoCheckBankruptcy(gs, clientId);
     }
@@ -1621,7 +1639,7 @@ function handleMonopoly(room, clientId, ws, msg) {
     const pr = gs.pendingRent;
     gs.money[clientId] = (gs.money[clientId]||0) - pr.rent;
     gs.money[pr.ownerId] = (gs.money[pr.ownerId]||0) + pr.rent;
-    const ownerName = room.clients.find(c=>c.id===pr.ownerId)?.name||'?';
+    const ownerName = room.clients.find(c=>(c.userId||c.id)===pr.ownerId)?.name||'?';
     gs.log.unshift(`${name} betaalt €${pr.rent} huur aan ${ownerName}.`);
     monoCheckBankruptcy(gs, clientId);
     gs.pendingRent=null; gs.popup=null; gs.phase='playing';

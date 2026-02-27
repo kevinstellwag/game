@@ -13,15 +13,15 @@ const wss = new WebSocketServer({ server });
 app.use(express.static(path.join(__dirname, '../public')));
 app.use(express.json());
 
-const JWT_SECRET = process.env.JWT_SECRET || 'partygames_dev_secret_2024';
+const JWT_SECRET = process.env.JWT_SECRET || 'partygames_secret_2024';
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'kevin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
-// ==================== DATABASE ====================
-const db = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
-});
+function hashPw(pw) {
+  return new Promise((res, rej) => crypto.scrypt(pw, 'pg_salt_2024', 64, (e, k) => e ? rej(e) : res(k.toString('hex'))));
+}
+
+const db = new Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false });
 
 async function initDB() {
   if (!process.env.DATABASE_URL) { console.log('[DB] No DATABASE_URL'); return; }
@@ -29,65 +29,52 @@ async function initDB() {
     await db.query(`
       CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        username TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        color TEXT DEFAULT '#4d96ff',
-        is_admin BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        last_seen TIMESTAMPTZ DEFAULT NOW()
+        username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL,
+        color TEXT DEFAULT '#4d96ff', is_admin BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMPTZ DEFAULT NOW(), last_seen TIMESTAMPTZ DEFAULT NOW()
       );
       CREATE TABLE IF NOT EXISTS user_stats (
         user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
         cah_wins INT DEFAULT 0, cah_losses INT DEFAULT 0, cah_rounds INT DEFAULT 0,
         czar_picks INT DEFAULT 0, cah_best_streak INT DEFAULT 0, cah_current_streak INT DEFAULT 0,
         mono_props_bought INT DEFAULT 0, mono_jail_visits INT DEFAULT 0,
-        mono_money_earned BIGINT DEFAULT 0, max_players_in_game INT DEFAULT 0,
-        played_at_midnight BOOLEAN DEFAULT FALSE
+        mono_money_earned BIGINT DEFAULT 0, max_players_in_game INT DEFAULT 0, played_at_midnight BOOLEAN DEFAULT FALSE
       );
       CREATE TABLE IF NOT EXISTS achievements (
         user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-        achievement_id TEXT NOT NULL,
-        unlocked_at TIMESTAMPTZ DEFAULT NOW(),
+        achievement_id TEXT NOT NULL, unlocked_at TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE(user_id, achievement_id)
       );
       CREATE TABLE IF NOT EXISTS friendships (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         requester_id UUID REFERENCES users(id) ON DELETE CASCADE,
         addressee_id UUID REFERENCES users(id) ON DELETE CASCADE,
-        status TEXT DEFAULT 'pending',
-        created_at TIMESTAMPTZ DEFAULT NOW(),
+        status TEXT DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE(requester_id, addressee_id)
       );
       CREATE TABLE IF NOT EXISTS groups_table (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        name TEXT NOT NULL,
-        color TEXT DEFAULT '#4d96ff',
+        name TEXT NOT NULL, color TEXT DEFAULT '#4d96ff',
         owner_id UUID REFERENCES users(id) ON DELETE CASCADE,
-        invite_code TEXT UNIQUE NOT NULL,
-        created_at TIMESTAMPTZ DEFAULT NOW()
+        invite_code TEXT UNIQUE NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW()
       );
       CREATE TABLE IF NOT EXISTS group_members (
         group_id UUID REFERENCES groups_table(id) ON DELETE CASCADE,
         user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-        joined_at TIMESTAMPTZ DEFAULT NOW(),
-        PRIMARY KEY (group_id, user_id)
+        joined_at TIMESTAMPTZ DEFAULT NOW(), PRIMARY KEY (group_id, user_id)
       );
       CREATE TABLE IF NOT EXISTS messages (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        channel TEXT NOT NULL,
-        sender_id UUID REFERENCES users(id) ON DELETE SET NULL,
-        sender_name TEXT NOT NULL,
-        sender_color TEXT DEFAULT '#4d96ff',
-        content TEXT NOT NULL,
-        msg_type TEXT DEFAULT 'text',
-        metadata JSONB DEFAULT '{}',
-        created_at TIMESTAMPTZ DEFAULT NOW()
+        channel TEXT NOT NULL, sender_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        sender_name TEXT NOT NULL, sender_color TEXT DEFAULT '#4d96ff',
+        content TEXT NOT NULL, msg_type TEXT DEFAULT 'text',
+        metadata JSONB DEFAULT '{}', created_at TIMESTAMPTZ DEFAULT NOW()
       );
       CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel, created_at ASC);
       CREATE INDEX IF NOT EXISTS idx_friendships_users ON friendships(requester_id, addressee_id);
     `);
-    // Create or update admin
-    const adminHash = await new Promise((res,rej)=>crypto.scrypt(ADMIN_PASSWORD,'pg_salt_2024',64,(e,k)=>e?rej(e):res(k.toString('hex'))));
+    // Always sync admin password
+    const adminHash = await hashPw(ADMIN_PASSWORD);
     const adminCheck = await db.query('SELECT id FROM users WHERE username=$1', [ADMIN_USERNAME]);
     if (!adminCheck.rows.length) {
       const r = await db.query('INSERT INTO users (username,password_hash,color,is_admin) VALUES ($1,$2,$3,TRUE) RETURNING id', [ADMIN_USERNAME, adminHash, '#ff6b6b']);
@@ -95,14 +82,13 @@ async function initDB() {
       console.log('[DB] Admin created:', ADMIN_USERNAME);
     } else {
       await db.query('UPDATE users SET password_hash=$1, is_admin=TRUE WHERE username=$2', [adminHash, ADMIN_USERNAME]);
-      console.log('[DB] Admin password updated:', ADMIN_USERNAME);
+      console.log('[DB] Admin synced:', ADMIN_USERNAME);
     }
     console.log('[DB] Ready');
   } catch(e) { console.error('[DB] Init error:', e.message); }
 }
 initDB();
 
-// ==================== MIDDLEWARE ====================
 function auth(req, res, next) {
   const token = (req.headers.authorization || '').replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: 'Niet ingelogd' });
@@ -113,7 +99,7 @@ function adminAuth(req, res, next) {
   auth(req, res, () => { if (!req.user.isAdmin) return res.status(403).json({ error: 'Geen toegang' }); next(); });
 }
 
-// ==================== AUTH ROUTES ====================
+// ===== AUTH =====
 app.post('/api/register', async (req, res) => {
   const { username, password, color } = req.body || {};
   if (!username?.trim() || !password) return res.status(400).json({ error: 'Vul alles in' });
@@ -123,8 +109,8 @@ app.post('/api/register', async (req, res) => {
   try {
     const exists = await db.query('SELECT id FROM users WHERE LOWER(username)=LOWER($1)', [username]);
     if (exists.rows.length) return res.status(409).json({ error: 'Naam al in gebruik' });
-    const hash = await new Promise((res,rej)=>crypto.scrypt(password,'pg_salt_2024',64,(e,k)=>e?rej(e):res(k.toString('hex'))));
-    const r = await db.query('INSERT INTO users (username,password_hash,color) VALUES ($1,$2,$3) RETURNING id,username,color,is_admin', [username.trim(), hash, color || '#4d96ff']);
+    const hash = await hashPw(password);
+    const r = await db.query('INSERT INTO users (username,password_hash,color) VALUES ($1,$2,$3) RETURNING id,username,color,is_admin', [username.trim(), hash, color||'#4d96ff']);
     await db.query('INSERT INTO user_stats (user_id) VALUES ($1)', [r.rows[0].id]);
     const u = r.rows[0];
     const token = jwt.sign({ id: u.id, username: u.username, color: u.color, isAdmin: u.is_admin }, JWT_SECRET, { expiresIn: '30d' });
@@ -140,8 +126,8 @@ app.post('/api/login', async (req, res) => {
     const r = await db.query('SELECT * FROM users WHERE LOWER(username)=LOWER($1)', [username]);
     if (!r.rows[0]) return res.status(401).json({ error: 'Gebruiker niet gevonden' });
     const u = r.rows[0];
-    const checkHash = await new Promise((res,rej)=>crypto.scrypt(password,'pg_salt_2024',64,(e,k)=>e?rej(e):res(k.toString('hex'))));
-    if (checkHash !== u.password_hash) return res.status(401).json({ error: 'Verkeerd wachtwoord' });
+    const inputHash = await hashPw(password);
+    if (inputHash !== u.password_hash) return res.status(401).json({ error: 'Verkeerd wachtwoord' });
     await db.query('UPDATE users SET last_seen=NOW() WHERE id=$1', [u.id]);
     const token = jwt.sign({ id: u.id, username: u.username, color: u.color, isAdmin: u.is_admin }, JWT_SECRET, { expiresIn: '30d' });
     res.json({ token, user: { id: u.id, username: u.username, color: u.color, isAdmin: u.is_admin } });
@@ -150,34 +136,26 @@ app.post('/api/login', async (req, res) => {
 
 app.get('/api/me', auth, async (req, res) => {
   try {
-    const r = await db.query(`
-      SELECT u.id, u.username, u.color, u.is_admin, u.created_at,
-        s.cah_wins, s.cah_losses, s.cah_rounds, s.czar_picks, s.cah_best_streak,
-        s.mono_props_bought, s.mono_money_earned,
-        (s.cah_wins*3 + s.czar_picks + s.mono_money_earned/1000) AS total_score,
-        COALESCE(json_agg(a.achievement_id) FILTER (WHERE a.achievement_id IS NOT NULL), '[]') AS achievements
-      FROM users u
-      LEFT JOIN user_stats s ON s.user_id=u.id
-      LEFT JOIN achievements a ON a.user_id=u.id
-      WHERE u.id=$1
-      GROUP BY u.id, s.user_id, s.cah_wins, s.cah_losses, s.cah_rounds, s.czar_picks,
-        s.cah_best_streak, s.mono_props_bought, s.mono_money_earned, s.max_players_in_game, s.played_at_midnight
-    `, [req.user.id]);
+    const r = await db.query(`SELECT u.id,u.username,u.color,u.is_admin,u.created_at,
+      s.cah_wins,s.cah_losses,s.cah_rounds,s.czar_picks,s.cah_best_streak,
+      s.mono_props_bought,s.mono_money_earned,
+      (s.cah_wins*3+s.czar_picks+s.mono_money_earned/1000) AS total_score,
+      COALESCE(json_agg(a.achievement_id) FILTER (WHERE a.achievement_id IS NOT NULL),'[]') AS achievements
+      FROM users u LEFT JOIN user_stats s ON s.user_id=u.id
+      LEFT JOIN achievements a ON a.user_id=u.id WHERE u.id=$1
+      GROUP BY u.id,s.user_id,s.cah_wins,s.cah_losses,s.cah_rounds,s.czar_picks,s.cah_best_streak,s.mono_props_bought,s.mono_money_earned,s.max_players_in_game,s.played_at_midnight`, [req.user.id]);
     if (!r.rows[0]) return res.status(404).json({ error: 'Niet gevonden' });
     res.json(r.rows[0]);
   } catch(e) { res.status(500).json({ error: 'Server fout' }); }
 });
 
-// ==================== FRIENDS ====================
+// ===== FRIENDS =====
 app.get('/api/friends', auth, async (req, res) => {
   try {
-    const r = await db.query(`
-      SELECT u.id, u.username, u.color, f.status,
-        CASE WHEN f.requester_id=$1 THEN 'sent' ELSE 'received' END AS direction
-      FROM friendships f
-      JOIN users u ON u.id = CASE WHEN f.requester_id=$1 THEN f.addressee_id ELSE f.requester_id END
-      WHERE (f.requester_id=$1 OR f.addressee_id=$1)
-    `, [req.user.id]);
+    const r = await db.query(`SELECT u.id,u.username,u.color,f.status,
+      CASE WHEN f.requester_id=$1 THEN 'sent' ELSE 'received' END AS direction
+      FROM friendships f JOIN users u ON u.id=CASE WHEN f.requester_id=$1 THEN f.addressee_id ELSE f.requester_id END
+      WHERE f.requester_id=$1 OR f.addressee_id=$1`, [req.user.id]);
     res.json(r.rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -186,20 +164,20 @@ app.post('/api/friends/add', auth, async (req, res) => {
   const { username } = req.body || {};
   if (!username) return res.status(400).json({ error: 'Gebruikersnaam verplicht' });
   try {
-    const target = await db.query('SELECT id, username, color FROM users WHERE LOWER(username)=LOWER($1) AND id!=$2', [username, req.user.id]);
+    const target = await db.query('SELECT id,username,color FROM users WHERE LOWER(username)=LOWER($1) AND id!=$2', [username, req.user.id]);
     if (!target.rows[0]) return res.status(404).json({ error: 'Gebruiker niet gevonden' });
     const t = target.rows[0];
-    const existing = await db.query('SELECT id, status FROM friendships WHERE (requester_id=$1 AND addressee_id=$2) OR (requester_id=$2 AND addressee_id=$1)', [req.user.id, t.id]);
+    const existing = await db.query('SELECT id,status,requester_id FROM friendships WHERE (requester_id=$1 AND addressee_id=$2) OR (requester_id=$2 AND addressee_id=$1)', [req.user.id, t.id]);
     if (existing.rows[0]) {
       if (existing.rows[0].status === 'accepted') return res.status(409).json({ error: 'Al bevriend' });
-      // If they sent us a request, auto-accept
-      if (existing.rows[0].status === 'pending') {
+      if (existing.rows[0].status === 'pending' && existing.rows[0].requester_id !== req.user.id) {
         await db.query('UPDATE friendships SET status=$1 WHERE id=$2', ['accepted', existing.rows[0].id]);
         broadcastToUser(t.id, { type: 'FRIEND_ACCEPTED', user: { id: req.user.id, username: req.user.username, color: req.user.color } });
         return res.json({ status: 'accepted', user: t });
       }
+      return res.status(409).json({ error: 'Verzoek al verzonden' });
     }
-    await db.query('INSERT INTO friendships (requester_id, addressee_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [req.user.id, t.id]);
+    await db.query('INSERT INTO friendships (requester_id,addressee_id) VALUES ($1,$2)', [req.user.id, t.id]);
     broadcastToUser(t.id, { type: 'FRIEND_REQUEST', from: { id: req.user.id, username: req.user.username, color: req.user.color } });
     res.json({ status: 'pending', user: t });
   } catch(e) { res.status(500).json({ error: e.message }); }
@@ -208,31 +186,25 @@ app.post('/api/friends/add', auth, async (req, res) => {
 app.post('/api/friends/accept', auth, async (req, res) => {
   const { userId } = req.body || {};
   try {
-    const r = await db.query('UPDATE friendships SET status=$1 WHERE requester_id=$2 AND addressee_id=$3 AND status=$4 RETURNING *', ['accepted', userId, req.user.id, 'pending']);
-    if (!r.rows[0]) return res.status(404).json({ error: 'Verzoek niet gevonden' });
+    await db.query('UPDATE friendships SET status=$1 WHERE requester_id=$2 AND addressee_id=$3 AND status=$4', ['accepted', userId, req.user.id, 'pending']);
     broadcastToUser(userId, { type: 'FRIEND_ACCEPTED', user: { id: req.user.id, username: req.user.username, color: req.user.color } });
     res.json({ ok: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/friends/:userId', auth, async (req, res) => {
-  try {
-    await db.query('DELETE FROM friendships WHERE (requester_id=$1 AND addressee_id=$2) OR (requester_id=$2 AND addressee_id=$1)', [req.user.id, req.params.userId]);
-    res.json({ ok: true });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  try { await db.query('DELETE FROM friendships WHERE (requester_id=$1 AND addressee_id=$2) OR (requester_id=$2 AND addressee_id=$1)', [req.user.id, req.params.userId]); res.json({ ok: true }); }
+  catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ==================== GROUPS ====================
-function genCode(len=8) {
-  const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s='';
-  for(let i=0;i<len;i++) s+=c[Math.floor(Math.random()*c.length)]; return s;
-}
+// ===== GROUPS =====
+function genCode() { const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s=''; for(let i=0;i<8;i++) s+=c[Math.floor(Math.random()*c.length)]; return s; }
 
 app.post('/api/groups', auth, async (req, res) => {
   const { name, color } = req.body || {};
   if (!name?.trim()) return res.status(400).json({ error: 'Naam verplicht' });
   try {
-    let code; do { code = genCode(); } while ((await db.query('SELECT id FROM groups_table WHERE invite_code=$1', [code])).rows.length);
+    let code; do { code=genCode(); } while ((await db.query('SELECT id FROM groups_table WHERE invite_code=$1',[code])).rows.length);
     const r = await db.query('INSERT INTO groups_table (name,color,owner_id,invite_code) VALUES ($1,$2,$3,$4) RETURNING *', [name.trim().slice(0,40), color||'#4d96ff', req.user.id, code]);
     await db.query('INSERT INTO group_members (group_id,user_id) VALUES ($1,$2)', [r.rows[0].id, req.user.id]);
     res.json(r.rows[0]);
@@ -241,13 +213,10 @@ app.post('/api/groups', auth, async (req, res) => {
 
 app.get('/api/groups', auth, async (req, res) => {
   try {
-    const r = await db.query(`
-      SELECT g.*, u.username AS owner_name, COUNT(gm.user_id)::int AS member_count
-      FROM groups_table g JOIN users u ON u.id=g.owner_id
-      JOIN group_members gm ON gm.group_id=g.id
+    const r = await db.query(`SELECT g.*,u.username AS owner_name,COUNT(gm.user_id)::int AS member_count
+      FROM groups_table g JOIN users u ON u.id=g.owner_id JOIN group_members gm ON gm.group_id=g.id
       WHERE g.id IN (SELECT group_id FROM group_members WHERE user_id=$1)
-      GROUP BY g.id, u.username ORDER BY g.created_at DESC
-    `, [req.user.id]);
+      GROUP BY g.id,u.username ORDER BY g.created_at DESC`, [req.user.id]);
     res.json(r.rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -265,59 +234,35 @@ app.post('/api/groups/join', auth, async (req, res) => {
 
 app.get('/api/groups/:id/members', auth, async (req, res) => {
   try {
-    const r = await db.query('SELECT u.id,u.username,u.color,gm.joined_at FROM group_members gm JOIN users u ON u.id=gm.user_id WHERE gm.group_id=$1 ORDER BY gm.joined_at', [req.params.id]);
+    const r = await db.query('SELECT u.id,u.username,u.color FROM group_members gm JOIN users u ON u.id=gm.user_id WHERE gm.group_id=$1 ORDER BY gm.joined_at', [req.params.id]);
     res.json(r.rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ==================== MESSAGES ====================
-app.get('/api/messages/:channel', auth, async (req, res) => {
-  const ch = decodeURIComponent(req.params.channel);
-  // Auth check for DMs and groups
-  if (ch.startsWith('dm:')) {
-    const parts = ch.replace('dm:', '').split(':').sort();
-    if (!parts.includes(req.user.id)) return res.status(403).json({ error: 'Geen toegang' });
-  }
-  if (ch.startsWith('group:')) {
-    const gid = ch.replace('group:', '');
-    const ok = await db.query('SELECT 1 FROM group_members WHERE group_id=$1 AND user_id=$2', [gid, req.user.id]);
-    if (!ok.rows.length) return res.status(403).json({ error: 'Geen lid van deze groep' });
-  }
-  try {
-    const r = await db.query('SELECT * FROM messages WHERE channel=$1 ORDER BY created_at ASC LIMIT 150', [ch]);
-    res.json(r.rows);
-  } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-// ==================== LEADERBOARD ====================
+// ===== LEADERBOARD =====
 app.get('/api/leaderboard', async (req, res) => {
   if (!process.env.DATABASE_URL) return res.json([]);
   try {
-    const r = await db.query(`
-      SELECT u.id, u.username, u.color, s.cah_wins, s.czar_picks, s.cah_rounds,
-        s.mono_money_earned, s.cah_best_streak,
-        (s.cah_wins*3 + s.czar_picks + s.mono_money_earned/1000) AS total_score,
-        COUNT(DISTINCT a.achievement_id)::int AS achievement_count
-      FROM users u JOIN user_stats s ON s.user_id=u.id
-      LEFT JOIN achievements a ON a.user_id=u.id
-      WHERE u.is_admin=FALSE
-      GROUP BY u.id, s.user_id, s.cah_wins, s.czar_picks, s.cah_rounds, s.mono_money_earned, s.cah_best_streak
-      ORDER BY total_score DESC LIMIT 25
-    `);
+    const r = await db.query(`SELECT u.id,u.username,u.color,s.cah_wins,s.czar_picks,s.cah_rounds,s.mono_money_earned,s.cah_best_streak,
+      (s.cah_wins*3+s.czar_picks+s.mono_money_earned/1000) AS total_score,
+      COUNT(DISTINCT a.achievement_id)::int AS achievement_count
+      FROM users u JOIN user_stats s ON s.user_id=u.id LEFT JOIN achievements a ON a.user_id=u.id
+      WHERE u.is_admin=FALSE GROUP BY u.id,s.user_id,s.cah_wins,s.czar_picks,s.cah_rounds,s.mono_money_earned,s.cah_best_streak
+      ORDER BY total_score DESC LIMIT 25`);
     res.json(r.rows);
   } catch(e) { res.status(500).json([]); }
 });
 
-// ==================== ADMIN ====================
+// ===== ADMIN =====
 app.get('/api/admin/stats', adminAuth, async (req, res) => {
   try {
-    const [u, g, m, r] = await Promise.all([
+    const [u,g,m,r] = await Promise.all([
       db.query("SELECT COUNT(*)::int c FROM users WHERE is_admin=FALSE"),
       db.query("SELECT COUNT(*)::int c FROM groups_table"),
       db.query("SELECT COUNT(*)::int c FROM messages"),
       db.query("SELECT COUNT(*)::int c FROM users WHERE last_seen > NOW()-INTERVAL '24 hours'"),
     ]);
-    res.json({ users: u.rows[0].c, groups: g.rows[0].c, messages: m.rows[0].c, activeToday: r.rows[0].c, onlineNow: onlineUsers.size });
+    res.json({ users:u.rows[0].c, groups:g.rows[0].c, messages:m.rows[0].c, activeToday:r.rows[0].c, onlineNow:onlineUsers.size });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -331,15 +276,15 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
 });
 
 app.delete('/api/admin/users/:id', adminAuth, async (req, res) => {
-  try { await db.query('DELETE FROM users WHERE id=$1 AND is_admin=FALSE', [req.params.id]); res.json({ ok: true }); }
+  try { await db.query('DELETE FROM users WHERE id=$1 AND is_admin=FALSE',[req.params.id]); res.json({ ok:true }); }
   catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/admin/reset-stats/:id', adminAuth, async (req, res) => {
   try {
-    await db.query('UPDATE user_stats SET cah_wins=0,cah_losses=0,cah_rounds=0,czar_picks=0,cah_best_streak=0,cah_current_streak=0,mono_props_bought=0,mono_jail_visits=0,mono_money_earned=0 WHERE user_id=$1', [req.params.id]);
-    await db.query('DELETE FROM achievements WHERE user_id=$1', [req.params.id]);
-    res.json({ ok: true });
+    await db.query('UPDATE user_stats SET cah_wins=0,cah_losses=0,cah_rounds=0,czar_picks=0,cah_best_streak=0,cah_current_streak=0,mono_props_bought=0,mono_jail_visits=0,mono_money_earned=0 WHERE user_id=$1',[req.params.id]);
+    await db.query('DELETE FROM achievements WHERE user_id=$1',[req.params.id]);
+    res.json({ ok:true });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -353,239 +298,216 @@ app.get('/api/admin/groups', adminAuth, async (req, res) => {
 });
 
 app.delete('/api/admin/groups/:id', adminAuth, async (req, res) => {
-  try { await db.query('DELETE FROM groups_table WHERE id=$1', [req.params.id]); res.json({ ok: true }); }
+  try { await db.query('DELETE FROM groups_table WHERE id=$1',[req.params.id]); res.json({ ok:true }); }
   catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ==================== ONLINE USERS ====================
+// ===== ONLINE USERS =====
 const onlineUsers = new Map(); // userId -> Set<ws>
 
 function broadcastToUser(userId, data) {
-  const wsSet = onlineUsers.get(userId);
-  if (!wsSet) return;
   const msg = JSON.stringify(data);
-  for (const ws of wsSet) { if (ws.readyState === 1) ws.send(msg); }
+  (onlineUsers.get(userId) || new Set()).forEach(ws => { if (ws.readyState===1) ws.send(msg); });
 }
 
 function broadcastToChannel(channel, data) {
   const msg = JSON.stringify(data);
-  for (const wsSet of onlineUsers.values()) {
-    for (const ws of wsSet) {
-      if (ws.readyState === 1 && ws._subs && ws._subs.has(channel)) ws.send(msg);
-    }
-  }
+  for (const wsSet of onlineUsers.values())
+    for (const ws of wsSet)
+      if (ws.readyState===1 && ws._subs?.has(channel)) ws.send(msg);
 }
 
-function getOnlineIds() { return [...onlineUsers.keys()]; }
+// ===== GAME SESSIONS =====
+const gameSessions = new Map(); // channel -> session
 
-// ==================== GAME SESSIONS ====================
-// Games live inside chat channels — no separate rooms
-const gameSessions = new Map(); // channel -> { game, players, state, ... }
+// roomState shim for game handlers
+function roomState(code) {
+  const session = gameSessions.get(code);
+  if (!session) return { code, game:'?', phase:'lobby', players:[], settings:{} };
+  return {
+    code: session.channel, game: session.game,
+    phase: session.gameState?.phase || 'lobby',
+    players: session.players.map(c => ({ id:c.id, userId:c.userId, name:c.name, isHost:c.isHost, score:c.score||0, color:c.color })),
+    settings: session.settings || {},
+  };
+}
 
-// ==================== WEBSOCKET ====================
-setInterval(() => { wss.clients.forEach(ws => { if (!ws.isAlive) { ws.terminate(); return; } ws.isAlive = false; ws.ping(); }); }, 25000);
+function send(ws, data) { if (ws?.readyState===1) ws.send(JSON.stringify(data)); }
+function bcast(room, data, skipId=null) { room.clients.forEach(c => { if (c.id!==skipId) send(c.ws, data); }); }
+
+// ===== WEBSOCKET =====
+setInterval(() => { wss.clients.forEach(ws => { if (!ws.isAlive){ws.terminate();return;} ws.isAlive=false; ws.ping(); }); }, 25000);
 
 wss.on('connection', (ws) => {
-  ws.isAlive = true;
-  ws._userId = null;
-  ws._user = null;
-  ws._subs = new Set();
-  ws.on('pong', () => { ws.isAlive = true; });
+  ws.isAlive=true; ws._userId=null; ws._user=null; ws._subs=new Set(); ws._gameChannel=null;
+  ws.on('pong', ()=>{ ws.isAlive=true; });
 
   ws.on('message', async (raw) => {
-    let msg; try { msg = JSON.parse(raw); } catch { return; }
-    if (msg.type === 'PING') { ws.send(JSON.stringify({ type: 'PONG' })); return; }
+    let msg; try { msg=JSON.parse(raw); } catch { return; }
+    if (msg.type==='PING') { ws.send(JSON.stringify({type:'PONG'})); return; }
 
     // AUTH
-    if (msg.type === 'WS_AUTH') {
+    if (msg.type==='WS_AUTH') {
       try {
         const u = jwt.verify(msg.token, JWT_SECRET);
-        ws._userId = u.id; ws._user = u;
+        ws._userId=u.id; ws._user=u;
         if (!onlineUsers.has(u.id)) onlineUsers.set(u.id, new Set());
         onlineUsers.get(u.id).add(ws);
-        if (process.env.DATABASE_URL) db.query('UPDATE users SET last_seen=NOW() WHERE id=$1', [u.id]).catch(() => {});
-        ws.send(JSON.stringify({ type: 'AUTH_OK', user: u, onlineIds: getOnlineIds() }));
-        // Notify others
-        broadcastToChannel('global', { type: 'USER_ONLINE', userId: u.id });
-      } catch { ws.send(JSON.stringify({ type: 'AUTH_ERROR' })); }
+        if (process.env.DATABASE_URL) db.query('UPDATE users SET last_seen=NOW() WHERE id=$1',[u.id]).catch(()=>{});
+        ws.send(JSON.stringify({ type:'AUTH_OK', user:u, onlineIds:[...onlineUsers.keys()] }));
+        broadcastToChannel('global', { type:'USER_ONLINE', userId:u.id });
+      } catch { ws.send(JSON.stringify({type:'AUTH_ERROR'})); }
       return;
     }
-
     if (!ws._userId) return;
 
-    // SUBSCRIBE to channel
-    if (msg.type === 'SUB') {
-      const ch = msg.channel;
-      if (!ch) return;
-      // Auth check
-      if (ch.startsWith('dm:')) {
-        const ids = ch.replace('dm:', '').split(':').sort();
-        if (!ids.includes(ws._userId)) return;
-      }
+    // SUBSCRIBE
+    if (msg.type==='SUB') {
+      const ch = msg.channel; if (!ch) return;
       if (ch.startsWith('group:')) {
         if (process.env.DATABASE_URL) {
-          const gid = ch.replace('group:', '');
-          const ok = await db.query('SELECT 1 FROM group_members WHERE group_id=$1 AND user_id=$2', [gid, ws._userId]).catch(() => ({ rows: [] }));
-          if (!ok.rows.length) { ws.send(JSON.stringify({ type: 'ERROR', message: 'Geen lid van deze groep' })); return; }
+          const ok = await db.query('SELECT 1 FROM group_members WHERE group_id=$1 AND user_id=$2',[ch.replace('group:',''),ws._userId]).catch(()=>({rows:[]}));
+          if (!ok.rows.length) { ws.send(JSON.stringify({type:'ERROR',message:'Geen lid van deze groep'})); return; }
         }
       }
+      if (ch.startsWith('dm:')) {
+        const ids = ch.replace('dm:','').split(':');
+        if (!ids.includes(ws._userId)) return;
+      }
       ws._subs.add(ch);
-      // Send recent messages
       if (process.env.DATABASE_URL) {
         try {
-          const msgs = await db.query('SELECT * FROM messages WHERE channel=$1 ORDER BY created_at ASC LIMIT 100', [ch]);
-          ws.send(JSON.stringify({ type: 'HISTORY', channel: ch, messages: msgs.rows }));
+          const msgs = await db.query('SELECT * FROM messages WHERE channel=$1 ORDER BY created_at ASC LIMIT 100',[ch]);
+          ws.send(JSON.stringify({type:'HISTORY',channel:ch,messages:msgs.rows}));
         } catch {}
       }
       // Send active game if any
-      if (gameSessions.has(ch)) {
-        const gs = gameSessions.get(ch);
-        ws.send(JSON.stringify({ type: 'GAME_ACTIVE', channel: ch, game: gs.game, players: gs.players.map(p => ({ id: p.userId, name: p.name, color: p.color })) }));
+      const gs = gameSessions.get(ch);
+      if (gs) ws.send(JSON.stringify({ type:'GAME_ACTIVE', channel:ch, game:gs.game, players:gs.players.map(p=>({id:p.userId,name:p.name,color:p.color,isHost:p.isHost})) }));
+      return;
+    }
+    if (msg.type==='UNSUB') { ws._subs.delete(msg.channel); return; }
+
+    // CHAT MESSAGE
+    if (msg.type==='MSG') {
+      const {channel,text} = msg;
+      if (!text?.trim()||!channel) return;
+      if (channel.startsWith('dm:') && !channel.includes(ws._userId)) return;
+      if (channel.startsWith('group:') && process.env.DATABASE_URL) {
+        const ok = await db.query('SELECT 1 FROM group_members WHERE group_id=$1 AND user_id=$2',[channel.replace('group:',''),ws._userId]).catch(()=>({rows:[]}));
+        if (!ok.rows.length) return;
       }
+      const m = { id:uuidv4(), channel, sender_id:ws._userId, sender_name:ws._user.username, sender_color:ws._user.color, content:text.slice(0,500), msg_type:'text', metadata:{}, created_at:new Date().toISOString() };
+      if (process.env.DATABASE_URL) db.query('INSERT INTO messages (id,channel,sender_id,sender_name,sender_color,content) VALUES ($1,$2,$3,$4,$5,$6)',[m.id,m.channel,m.sender_id,m.sender_name,m.sender_color,m.content]).catch(()=>{});
+      broadcastToChannel(channel, {type:'MSG',message:m});
       return;
     }
 
-    // UNSUB
-    if (msg.type === 'UNSUB') { ws._subs.delete(msg.channel); return; }
-
-    // SEND MESSAGE
-    if (msg.type === 'MSG') {
-      const { channel, text } = msg;
-      if (!text?.trim() || !channel) return;
-      // Auth
-      if (channel.startsWith('dm:')) {
-        const ids = channel.replace('dm:', '').split(':').sort();
-        if (!ids.includes(ws._userId)) return;
-      }
-      if (channel.startsWith('group:')) {
-        if (process.env.DATABASE_URL) {
-          const ok = await db.query('SELECT 1 FROM group_members WHERE group_id=$1 AND user_id=$2', [channel.replace('group:', ''), ws._userId]).catch(() => ({ rows: [] }));
-          if (!ok.rows.length) return;
-        }
-      }
-      const m = { id: uuidv4(), channel, sender_id: ws._userId, sender_name: ws._user.username, sender_color: ws._user.color, content: text.slice(0, 500), msg_type: 'text', metadata: {}, created_at: new Date().toISOString() };
-      if (process.env.DATABASE_URL) db.query('INSERT INTO messages (id,channel,sender_id,sender_name,sender_color,content) VALUES ($1,$2,$3,$4,$5,$6)', [m.id, m.channel, m.sender_id, m.sender_name, m.sender_color, m.content]).catch(() => {});
-      broadcastToChannel(channel, { type: 'MSG', message: m });
-      return;
-    }
-
-    // START GAME IN CHAT
-    if (msg.type === 'START_GAME') {
-      const { channel, game } = msg;
-      if (!channel || !game) return;
-      // Auth check
+    // START GAME
+    if (msg.type==='START_GAME') {
+      const {channel,game} = msg;
+      if (!channel||!game) return;
       let memberIds = [];
-      if (channel.startsWith('group:')) {
-        if (process.env.DATABASE_URL) {
-          const ok = await db.query('SELECT 1 FROM group_members WHERE group_id=$1 AND user_id=$2', [channel.replace('group:', ''), ws._userId]).catch(() => ({ rows: [] }));
-          if (!ok.rows.length) return;
-          const members = await db.query('SELECT user_id FROM group_members WHERE group_id=$1', [channel.replace('group:', '')]).catch(() => ({ rows: [] }));
-          memberIds = members.rows.map(r => r.user_id);
-        }
+      if (channel.startsWith('group:') && process.env.DATABASE_URL) {
+        const ok = await db.query('SELECT 1 FROM group_members WHERE group_id=$1 AND user_id=$2',[channel.replace('group:',''),ws._userId]).catch(()=>({rows:[]}));
+        if (!ok.rows.length) return;
+        const members = await db.query('SELECT user_id FROM group_members WHERE group_id=$1',[channel.replace('group:','')]).catch(()=>({rows:[]}));
+        memberIds = members.rows.map(r=>r.user_id);
       } else if (channel.startsWith('dm:')) {
-        memberIds = channel.replace('dm:', '').split(':');
+        memberIds = channel.replace('dm:','').split(':');
         if (!memberIds.includes(ws._userId)) return;
       }
-      // Create session
-      const session = { game, channel, players: [], gameState: null, settings: { maxPoints: 7 }, chat: [], startedAt: Date.now(), allowedUserIds: memberIds };
-      gameSessions.set(channel, session);
-      // Add host
-      const hostPlayer = { id: uuidv4(), userId: ws._userId, ws, name: ws._user.username, color: ws._user.color, isHost: true, score: 0 };
-      session.players.push(hostPlayer);
-      session.clients = session.players; // keep in sync
-      ws._gameChannel = channel;
-      // Announce in chat
-      const gameNames = { cah: 'Cards Against Humanity', poker: 'Poker', monopoly: 'Monopoly Straatvariant' };
-      const gameIcons = { cah: '🃏', poker: '♠️', monopoly: '🏦' };
-      const ann = { id: uuidv4(), channel, sender_id: null, sender_name: 'PartyGames', sender_color: '#ffd93d', content: ws._user.username + ' start een potje ' + (gameNames[game] || game) + '! Klik "Meedoen" om mee te spelen.', msg_type: 'game_invite', metadata: { channel, game, hostName: ws._user.username, gameIcon: gameIcons[game] || '🎮' }, created_at: new Date().toISOString() };
-      if (process.env.DATABASE_URL) db.query('INSERT INTO messages (id,channel,sender_id,sender_name,sender_color,content,msg_type,metadata) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)', [ann.id, ann.channel, null, 'PartyGames', '#ffd93d', ann.content, 'game_invite', JSON.stringify(ann.metadata)]).catch(() => {});
-      broadcastToChannel(channel, { type: 'MSG', message: ann });
-      ws.send(JSON.stringify({ type: 'GAME_JOINED', channel, isHost: true, game, players: session.players.map(p => ({ id: p.userId, name: p.name, color: p.color, isHost: p.isHost })) }));
-      return;
-    }
-
-    // JOIN GAME IN CHAT
-    if (msg.type === 'JOIN_GAME') {
-      const { channel } = msg;
-      const session = gameSessions.get(channel);
-      if (!session) { ws.send(JSON.stringify({ type: 'ERROR', message: 'Geen actief spel in dit kanaal' })); return; }
-      if (session.gameState) { ws.send(JSON.stringify({ type: 'ERROR', message: 'Spel is al bezig' })); return; }
-      // Check membership
-      if (session.allowedUserIds.length && !session.allowedUserIds.includes(ws._userId)) {
-        ws.send(JSON.stringify({ type: 'ERROR', message: 'Je bent geen lid van dit gesprek' })); return;
-      }
-      // Check not already in
-      if (session.players.find(p => p.userId === ws._userId)) {
-        ws.send(JSON.stringify({ type: 'GAME_JOINED', channel, isHost: false, game: session.game, players: session.players.map(p => ({ id: p.userId, name: p.name, color: p.color, isHost: p.isHost })) })); return;
-      }
-      const player = { id: uuidv4(), userId: ws._userId, ws, name: ws._user.username, color: ws._user.color, isHost: false, score: 0 };
-      session.players.push(player);
-      session.clients = session.players; // keep in sync
-      ws._gameChannel = channel;
-      broadcastToChannel(channel, { type: 'GAME_PLAYER_JOINED', channel, player: { id: ws._userId, name: ws._user.username, color: ws._user.color } });
-      ws.send(JSON.stringify({ type: 'GAME_JOINED', channel, isHost: false, game: session.game, players: session.players.map(p => ({ id: p.userId, name: p.name, color: p.color, isHost: p.isHost })) }));
-      return;
-    }
-
-    // GAME ACTION (routes to game handler)
-    if (msg.type === 'GAME_ACTION') {
-      const channel = ws._gameChannel || msg.channel;
-      const session = gameSessions.get(channel);
-      if (!session) return;
-      const clientPlayer = session.players.find(p => p.userId === ws._userId);
-      if (!clientPlayer) return;
-      // Ensure session is room-compatible
+      const session = { game, channel, players:[], clients:null, gameState:null, settings:{maxPoints:7}, chat:[], startedAt:Date.now(), allowedUserIds:memberIds };
       session.clients = session.players;
-      session.code = session.channel;
-      if (session.game === 'cah') handleCAH(session, clientPlayer.id, ws, msg);
-      else if (session.game === 'poker') handlePoker(session, clientPlayer.id, ws, msg);
-      else if (session.game === 'monopoly') handleMonopoly(session, clientPlayer.id, ws, msg);
+      session.code = channel;
+      gameSessions.set(channel, session);
+      const host = { id:uuidv4(), userId:ws._userId, ws, name:ws._user.username, color:ws._user.color, isHost:true, score:0 };
+      session.players.push(host);
+      ws._gameChannel = channel;
+      const gameNames={cah:'Cards Against Humanity',poker:'Poker',monopoly:'Monopoly Straatvariant'};
+      const gameIcons={cah:'🃏',poker:'♠️',monopoly:'🏦'};
+      const ann = { id:uuidv4(), channel, sender_id:null, sender_name:'PartyGames', sender_color:'#ffd93d', content:`${ws._user.username} start een potje ${gameNames[game]||game}! Klik Meedoen om mee te spelen.`, msg_type:'game_invite', metadata:{channel,game,hostName:ws._user.username,gameIcon:gameIcons[game]||'🎮'}, created_at:new Date().toISOString() };
+      if (process.env.DATABASE_URL) db.query('INSERT INTO messages (id,channel,sender_id,sender_name,sender_color,content,msg_type,metadata) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',[ann.id,ann.channel,null,'PartyGames','#ffd93d',ann.content,'game_invite',JSON.stringify(ann.metadata)]).catch(()=>{});
+      broadcastToChannel(channel, {type:'MSG',message:ann});
+      ws.send(JSON.stringify({type:'GAME_JOINED',channel,isHost:true,game,players:session.players.map(p=>({id:p.userId,name:p.name,color:p.color,isHost:p.isHost}))}));
       return;
     }
 
-    // GAME CHAT (in-game)
-    if (msg.type === 'GAME_CHAT') {
+    // JOIN GAME
+    if (msg.type==='JOIN_GAME') {
+      const {channel} = msg;
+      const session = gameSessions.get(channel);
+      if (!session) { ws.send(JSON.stringify({type:'ERROR',message:'Geen actief spel'})); return; }
+      if (session.allowedUserIds.length && !session.allowedUserIds.includes(ws._userId)) {
+        ws.send(JSON.stringify({type:'ERROR',message:'Je bent geen lid van dit gesprek'})); return;
+      }
+      // Already in?
+      if (session.players.find(p=>p.userId===ws._userId)) {
+        ws._gameChannel = channel;
+        ws.send(JSON.stringify({type:'GAME_JOINED',channel,isHost:false,game:session.game,players:session.players.map(p=>({id:p.userId,name:p.name,color:p.color,isHost:p.isHost}))}));
+        if (session.gameState) {
+          if (session.game==='cah') cahBroadcast(session);
+          else if (session.game==='poker') pokerBroadcast(session);
+          else if (session.game==='monopoly') monoBroadcast(session);
+        }
+        return;
+      }
+      const player = { id:uuidv4(), userId:ws._userId, ws, name:ws._user.username, color:ws._user.color, isHost:false, score:0 };
+      session.players.push(player);
+      ws._gameChannel = channel;
+      broadcastToChannel(channel, {type:'GAME_PLAYER_JOINED',channel,player:{id:ws._userId,name:ws._user.username,color:ws._user.color}});
+      ws.send(JSON.stringify({type:'GAME_JOINED',channel,isHost:false,game:session.game,players:session.players.map(p=>({id:p.userId,name:p.name,color:p.color,isHost:p.isHost}))}));
+      return;
+    }
+
+    // GAME ACTION
+    if (msg.type==='GAME_ACTION') {
       const channel = ws._gameChannel || msg.channel;
       const session = gameSessions.get(channel);
       if (!session) return;
-      const player = session.players.find(p => p.userId === ws._userId);
-      if (!player || !msg.text?.trim()) return;
-      const m = { id: uuidv4(), playerId: ws._userId, playerName: player.name, text: msg.text.slice(0, 200), time: Date.now() };
-      session.chat.push(m); if (session.chat.length > 100) session.chat.shift();
-      broadcastToGameChannel(session, { type: 'GAME_CHAT', message: m });
+      const clientPlayer = session.players.find(p=>p.userId===ws._userId);
+      if (!clientPlayer) return;
+      // Handle game switch
+      if (msg.action==='SWITCH_GAME') {
+        if (!clientPlayer.isHost) return;
+        session.game = msg.game; session.gameState = null;
+        session.players.forEach(p=>{ p.score=0; });
+        broadcastGameLobby(session);
+        return;
+      }
+      if (session.game==='cah') handleCAH(session, clientPlayer.id, ws, msg);
+      else if (session.game==='poker') handlePoker(session, clientPlayer.id, ws, msg);
+      else if (session.game==='monopoly') handleMonopoly(session, clientPlayer.id, ws, msg);
       return;
     }
 
     // GAME SETTINGS
-    if (msg.type === 'GAME_SETTINGS') {
+    if (msg.type==='GAME_SETTINGS') {
       const channel = ws._gameChannel || msg.channel;
       const session = gameSessions.get(channel);
       if (!session) return;
-      const player = session.players.find(p => p.userId === ws._userId);
-      if (!player?.isHost) return;
+      if (!session.players.find(p=>p.userId===ws._userId)?.isHost) return;
       session.settings = { ...session.settings, ...msg.settings };
-      broadcastToGameChannel(session, { type: 'GAME_STATE', game: session.game, state: { phase: 'lobby', players: session.players.map(p => ({ id: p.id, userId: p.userId, name: p.name, color: p.color, isHost: p.isHost, score: p.score })), settings: session.settings } });
+      broadcastGameLobby(session);
+      return;
+    }
+
+    // GAME CHAT
+    if (msg.type==='GAME_CHAT') {
+      const channel = ws._gameChannel || msg.channel;
+      const session = gameSessions.get(channel);
+      if (!session) return;
+      const player = session.players.find(p=>p.userId===ws._userId);
+      if (!player||!msg.text?.trim()) return;
+      const m = { id:uuidv4(), playerId:ws._userId, playerName:player.name, text:msg.text.slice(0,200), time:Date.now() };
+      session.chat.push(m); if (session.chat.length>100) session.chat.shift();
+      session.players.forEach(p=>send(p.ws,{type:'GAME_CHAT',message:m}));
       return;
     }
 
     // LEAVE GAME
-    if (msg.type === 'LEAVE_GAME') {
-      const channel = ws._gameChannel;
-      if (!channel) return;
-      const session = gameSessions.get(channel);
-      if (session) {
-        const idx = session.players.findIndex(p => p.userId === ws._userId);
-        if (idx !== -1) {
-          const leaving = session.players[idx];
-          session.players.splice(idx, 1);
-          if (session.players.length === 0) { gameSessions.delete(channel); }
-          else {
-            if (leaving.isHost) session.players[0].isHost = true;
-            broadcastToGameChannel(session, { type: 'GAME_PLAYER_LEFT', userId: ws._userId, name: leaving.name });
-          }
-        }
-      }
-      ws._gameChannel = null;
+    if (msg.type==='LEAVE_GAME') {
+      handleLeaveGame(ws);
       return;
     }
   });
@@ -593,67 +515,34 @@ wss.on('connection', (ws) => {
   ws.on('close', () => {
     if (ws._userId) {
       const wsSet = onlineUsers.get(ws._userId);
-      if (wsSet) { wsSet.delete(ws); if (!wsSet.size) { onlineUsers.delete(ws._userId); broadcastToChannel('global', { type: 'USER_OFFLINE', userId: ws._userId }); } }
+      if (wsSet) { wsSet.delete(ws); if (!wsSet.size) { onlineUsers.delete(ws._userId); broadcastToChannel('global',{type:'USER_OFFLINE',userId:ws._userId}); } }
     }
-    // Remove from game
-    if (ws._gameChannel) {
-      const session = gameSessions.get(ws._gameChannel);
-      if (session) {
-        const idx = session.players.findIndex(p => p.ws === ws);
-        if (idx !== -1) {
-          const leaving = session.players[idx];
-          session.players.splice(idx, 1);
-          if (session.players.length === 0) gameSessions.delete(ws._gameChannel);
-          else {
-            if (leaving.isHost) session.players[0].isHost = true;
-            broadcastToGameChannel(session, { type: 'GAME_PLAYER_LEFT', userId: ws._userId, name: leaving.name });
-          }
-        }
-      }
-    }
+    if (ws._gameChannel) handleLeaveGame(ws, true);
   });
-
-  ws.on('error', () => {});
+  ws.on('error', ()=>{});
 });
 
-function broadcastToGameChannel(session, data) {
-  const msg = JSON.stringify(data);
-  for (const p of session.players) { if (p.ws && p.ws.readyState === 1) p.ws.send(msg); }
+function handleLeaveGame(ws, disconnected=false) {
+  const channel = ws._gameChannel;
+  if (!channel) return;
+  const session = gameSessions.get(channel);
+  if (!session) return;
+  const idx = session.players.findIndex(p=>p.ws===ws);
+  if (idx===-1) return;
+  const leaving = session.players[idx];
+  session.players.splice(idx,1);
+  ws._gameChannel = null;
+  if (session.players.length===0) { gameSessions.delete(channel); return; }
+  if (leaving.isHost) session.players[0].isHost = true;
+  session.players.forEach(p=>send(p.ws,{type:'GAME_PLAYER_LEFT',userId:ws._userId,name:leaving.name}));
 }
 
-// Patch bcast/send for game handlers (they expect rooms style)
-function send(ws, data) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(data)); }
-function bcast(session, data, skipId = null) {
-  for (const p of session.players) { if (p.id !== skipId) send(p.ws, data); }
+function broadcastGameLobby(session) {
+  const data = { type:'GAME_STATE', game:session.game, state:{ phase:'lobby', players:session.players.map(p=>({id:p.id,userId:p.userId,name:p.name,color:p.color,isHost:p.isHost,score:p.score})), settings:session.settings } };
+  session.players.forEach(p=>send(p.ws, data));
 }
 
-// Shim: game handlers use room.clients — map sessions.players to clients
-function sessionToRoom(session) {
-  return {
-    ...session,
-    code: session.channel,
-    phase: session.gameState?.phase || 'lobby',
-    clients: session.players.map(p => ({ ...p, name: p.name || p.username })),
-  };
-}
-
-app.get('/health', (req, res) => res.json({ ok: true, online: onlineUsers.size, sessions: gameSessions.size }));
-
-// roomState shim — game handlers call roomState(room.code)
-function roomState(code) {
-  const session = gameSessions.get(code) || [...gameSessions.values()].find(s => s.channel === code);
-  if (!session) return { code, game: '?', phase: 'lobby', players: [], settings: {} };
-  return {
-    code: session.channel, game: session.game,
-    phase: session.gameState?.phase || 'lobby',
-    players: (session.clients || session.players || []).map(c => ({
-      id: c.id, userId: c.userId, name: c.name, isHost: c.isHost, score: c.score || 0, color: c.color
-    })),
-    settings: session.settings || {},
-  };
-}
-
-// ==================== CAH (DUTCH EDITION — 18+) ====================
+app.get('/health',(req,res)=>res.json({ok:true,online:onlineUsers.size,sessions:gameSessions.size}));
 const BLACK = [
   // Klassiekers
   "Waarom heeft de kinderbescherming mijn huis nooit meer verlaten?",
@@ -1089,7 +978,6 @@ const WHITE = [
   "vluchtelingen terugsturen met bommen in hun bagage als 'welkomstcadeau'",
   "Syrische vluchtelingen in kampen stoppen en ze langzaam laten sterven van honger",
 ];
-
 
 function shuffle(a) {
   const b = [...a];

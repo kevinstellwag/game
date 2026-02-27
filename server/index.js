@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const http = require('http');
 const { Pool } = require('pg');
-const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
 const app = express();
@@ -89,7 +89,7 @@ async function initDB() {
     // Create admin
     const adminCheck = await db.query('SELECT id FROM users WHERE username=$1', [ADMIN_USERNAME]);
     if (!adminCheck.rows.length) {
-      const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
+      const hash = await new Promise((res,rej)=>crypto.scrypt(ADMIN_PASSWORD,'pg_salt_2024',64,(e,k)=>e?rej(e):res(k.toString('hex'))));
       const r = await db.query('INSERT INTO users (username,password_hash,color,is_admin) VALUES ($1,$2,$3,TRUE) RETURNING id', [ADMIN_USERNAME, hash, '#ff6b6b']);
       await db.query('INSERT INTO user_stats (user_id) VALUES ($1)', [r.rows[0].id]);
       console.log('[DB] Admin created:', ADMIN_USERNAME);
@@ -120,7 +120,7 @@ app.post('/api/register', async (req, res) => {
   try {
     const exists = await db.query('SELECT id FROM users WHERE LOWER(username)=LOWER($1)', [username]);
     if (exists.rows.length) return res.status(409).json({ error: 'Naam al in gebruik' });
-    const hash = await bcrypt.hash(password, 10);
+    const hash = await new Promise((res,rej)=>crypto.scrypt(password,'pg_salt_2024',64,(e,k)=>e?rej(e):res(k.toString('hex'))));
     const r = await db.query('INSERT INTO users (username,password_hash,color) VALUES ($1,$2,$3) RETURNING id,username,color,is_admin', [username.trim(), hash, color || '#4d96ff']);
     await db.query('INSERT INTO user_stats (user_id) VALUES ($1)', [r.rows[0].id]);
     const u = r.rows[0];
@@ -137,7 +137,8 @@ app.post('/api/login', async (req, res) => {
     const r = await db.query('SELECT * FROM users WHERE LOWER(username)=LOWER($1)', [username]);
     if (!r.rows[0]) return res.status(401).json({ error: 'Gebruiker niet gevonden' });
     const u = r.rows[0];
-    if (!await bcrypt.compare(password, u.password_hash)) return res.status(401).json({ error: 'Verkeerd wachtwoord' });
+    const checkHash = await new Promise((res,rej)=>crypto.scrypt(password,'pg_salt_2024',64,(e,k)=>e?rej(e):res(k.toString('hex'))));
+    if (checkHash !== u.password_hash) return res.status(401).json({ error: 'Verkeerd wachtwoord' });
     await db.query('UPDATE users SET last_seen=NOW() WHERE id=$1', [u.id]);
     const token = jwt.sign({ id: u.id, username: u.username, color: u.color, isAdmin: u.is_admin }, JWT_SECRET, { expiresIn: '30d' });
     res.json({ token, user: { id: u.id, username: u.username, color: u.color, isAdmin: u.is_admin } });
@@ -1085,6 +1086,7 @@ const WHITE = [
   "vluchtelingen terugsturen met bommen in hun bagage als 'welkomstcadeau'",
   "Syrische vluchtelingen in kampen stoppen en ze langzaam laten sterven van honger",
 ];
+
 
 function shuffle(a) {
   const b = [...a];

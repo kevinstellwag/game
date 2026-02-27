@@ -1249,10 +1249,10 @@ const CAH = {
     const area = document.getElementById('game-area');
     if (!area) return;
 
-    if (state.phase === 'playing') CAH.renderPlaying(area, state);
-    else if (state.phase === 'judging') CAH.renderJudging(area, state);
-    else if (state.phase === 'scores') CAH.renderScores(area, state);
-    else CAH.renderLobby(area);
+    if (state.phase === 'playing') CAH.renderPlaying(area, state, myId);
+    else if (state.phase === 'judging') CAH.renderJudging(area, state, myId);
+    else if (state.phase === 'scores') CAH.renderScores(area, state, myId);
+    else CAH.renderLobby(area, state, myId);
   },
 
   renderLobby(area) {
@@ -1271,7 +1271,7 @@ const CAH = {
     `;
   },
 
-  renderPlaying(area, state) {
+  renderPlaying(area, state, myId) {
     const isCzar = state.czar === myId;
     const submitted = state.hasSubmitted;
     const submittedCount = state.submittedIds?.length || 0;

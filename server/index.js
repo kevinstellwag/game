@@ -956,7 +956,7 @@ const BLACK = [
   "Thomas' stanky legs ruiken naar ___",
   "Lucas goont zich af op ___ porno.",
   "Kevin haat ___ omdat hij een kleine dikke noob is.",
-  "Jop pijpt Rens,
+  "Jop pijpt Rens",
   "Stef denkt dat zijn IQ 130 is maar het is ___",
   "Roman is bang voor ___",
   "Milan ___",

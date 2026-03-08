@@ -1073,7 +1073,7 @@ const WHITE = [
   "1, 2, je kanker moeder",
   "Bestef je die?",
   "kanker dimma",
-  "kanker hurmple"
+  "kanker hurmple",
 ];
   
 

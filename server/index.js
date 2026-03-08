@@ -1070,32 +1070,6 @@ const WHITE = [
   "batsen",
   "Wanneer je verkracht wordt door een neger en erachter komt dat het dani is, hij neukt je zo kanker hard, dat je denkt dat je lotte bent, je gaat politie bellen, je spullen kwijtraken en waarschijnlijk een hoek op je kaak",
   "Schaamhaar",
-  "Het bakken van een taart bestaat uit een paar basisstappen: voorbereiding, mixen, bakken en afkoelen. Een klassieke basis voor taarten is een 'biscuit' (luchtig) of een cake (steviger, op basis van boter). Hieronder volgt een stappenplan voor een basis vanille-biscuit/cake. 
-1. Benodigdheden
-Ingrediënten: 200g ongezouten roomboter (op kamertemperatuur), 200g fijne kristalsuiker, 4 eieren (M, kamertemperatuur), 200g zelfrijzend bakmeel, snuf zout, vanillesuiker of vanille-extract.
-Materialen: Cakevorm (ca. 20-25 cm), elektrische mixer, beslagkom, spatel, bakpapier, satéprikker. 
-2. Voorbereiding
-Oven voorverwarmen: Verwarm de oven voor op 160-170°C (onder- en bovenwarmte) of 150-160°C (hetelucht).
-Vorm invetten: Vet de bakvorm in met boter en bestuif licht met bloem, of bekleed de bodem met bakpapier.
-Ingrediënten op temperatuur: Zorg dat boter en eieren op kamertemperatuur zijn om schiften te voorkomen. 
-3. Het Beslag Maken
-Boter en suiker mixen: Mix de boter, suiker, vanillesuiker en zout met een elektrische mixer in ca. 5-10 minuten tot een romig, wit en luchtig geheel.
-Eieren toevoegen: Voeg de eieren één voor één toe. Voeg het volgende ei pas toe als het vorige volledig is opgenomen.
-Bloem spatelen: Zeef het zelfrijzend bakmeel boven de kom. Spatel het meel voorzichtig door het beslag. Niet mixen! Zo behoud je de luchtigheid. 
-4. Bakken
-Vullen: Schep het beslag in de voorbereide vorm en strijk de bovenkant glad.
-Bakken: Bak de taart in het midden van de oven gedurende 45 tot 60 minuten.
-Checken: Prik na ca. 45 minuten met een satéprikker in het midden. Komt deze er schoon en droog uit? Dan is de taart gaar. 
-5. Afkoelen
-Vorm: Laat de taart 10 minuten afkoelen in de vorm.
-Rooster: Haal de taart uit de vorm en laat deze volledig afkoelen op een rooster. Dit voorkomt een zompige bodem. 
-Allrecipes
-Allrecipes
-Tips voor succes
-Deur dicht: Open de oven niet tijdens de eerste 30-40 minuten bakken, anders kan de taart inzakken.
-Luchtigheid: Klop de boter en suiker echt heel luchtig, dit bepaalt de structuur.
-Tremperen (optioneel): Voor een minder droge taart kun je de cake besprenkelen met suikerwater of siroop (tremperen). 
-Zodra de taart volledig is afgekoeld, kun je deze vullen en afsmeren met botercrème of versieren met glazuur.",
   "1, 2, je kanker moeder",
   "Bestef je die?",
   "kanker dimma",

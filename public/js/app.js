@@ -1,133 +1,24 @@
 /* ============================================================
-   CAH FRIENDS — FRONTEND (Vercel + Pusher edition)
+   CAH FRIENDS — FRONTEND (Vercel + Pusher)
    ============================================================ */
 
 // ── State ─────────────────────────────────────────────────
-let myUser     = null;
-let myToken    = null;
-let mySession  = null;   // { id, isHost, players, settings }
-let isHost     = false;
-let friends    = [];
-let currentGs  = null;   // latest game state for this user
-let chatUnread = 0;
+let myUser      = null;
+let myToken     = null;
+let mySession   = null;
+let isHost      = false;
+let friends     = [];
+let currentGs   = null;
+let chatUnread  = 0;
 let selectedPts = 7;
 let customBlack = [];
 let customWhite = [];
 let selectedColor = '#FF6B6B';
 
-// ── Pusher ────────────────────────────────────────────────
+// ── Pusher instances ──────────────────────────────────────
 let pusher          = null;
-let presenceChannel = null;   // presence-session-{id}
-let privateChannel  = null;   // private-user-{userId}
-
-const PUSHER_KEY     = window.PUSHER_KEY     || '';   // injected at build or from meta tag
-const PUSHER_CLUSTER = window.PUSHER_CLUSTER || 'eu';
-
-function initPusher() {
-  if (pusher) return;
-  if (!PUSHER_KEY) { console.warn('No PUSHER_KEY set'); return; }
-
-  pusher = new Pusher(PUSHER_KEY, {
-    cluster: PUSHER_CLUSTER,
-    authEndpoint: '/api/pusher-auth',
-    auth: {
-      headers: { Authorization: 'Bearer ' + myToken }
-    },
-  });
-
-  pusher.connection.bind('connected', () => console.log('[Pusher] connected'));
-  pusher.connection.bind('error',     (e) => console.error('[Pusher] error', e));
-
-  // Subscribe to private personal channel for notifications
-  privateChannel = pusher.subscribe(`private-user-${myUser.id}`);
-  bindPrivateEvents(privateChannel);
-}
-
-function bindPrivateEvents(ch) {
-  ch.bind('friend-request', (data) => {
-    toast(`👥 Vriendschapsverzoek van ${data.from.username}!`, 'info', 8000);
-    loadFriends();
-  });
-
-  ch.bind('friend-accepted', (data) => {
-    toast(`🎉 ${data.user.username} is nu jouw vriend!`, 'success', 5000);
-    loadFriends();
-  });
-
-  ch.bind('game-invite', (data) => {
-    showGameInviteToast(data);
-  });
-}
-
-function joinSessionChannel(sid) {
-  if (presenceChannel) {
-    pusher.unsubscribe(presenceChannel.name);
-    presenceChannel = null;
-  }
-
-  presenceChannel = pusher.subscribe(`presence-session-${sid}`);
-
-  presenceChannel.bind('pusher:subscription_succeeded', (members) => {
-    console.log('[Pusher] joined session channel, members:', members.count);
-  });
-
-  presenceChannel.bind('pusher:member_added', (member) => {
-    console.log('[Pusher] member joined:', member.info.username);
-  });
-
-  presenceChannel.bind('pusher:member_removed', (member) => {
-    console.log('[Pusher] member left:', member.info.username);
-  });
-
-  presenceChannel.bind('player-joined', (data) => {
-    if (mySession) mySession.players = data.players;
-    renderLobby(data.players, mySession?.settings, mySession?.id);
-    addChatMsg({ system: true, text: `${data.player.name} heeft de lobby betreden!` });
-    toast(`${data.player.name} is meegedaan!`, 'info');
-  });
-
-  presenceChannel.bind('player-left', (data) => {
-    if (mySession) {
-      mySession.players = data.players;
-      if (data.newHostId === myUser.id) {
-        isHost = true;
-        mySession.isHost = true;
-        toast('Je bent nu de host!', 'info');
-      }
-    }
-    renderLobby(data.players, mySession?.settings, mySession?.id);
-    addChatMsg({ system: true, text: `${data.name} heeft de lobby verlaten` });
-  });
-
-  presenceChannel.bind('settings-update', (settings) => {
-    if (mySession) mySession.settings = settings;
-    const el = document.getElementById('lobby-maxpts-display');
-    if (el) el.textContent = settings.maxPoints || 7;
-  });
-
-  presenceChannel.bind('game-state', (data) => {
-    // Server sends targetUserId so each client only renders their own state
-    if (data.targetUserId && data.targetUserId !== myUser.id) return;
-
-    currentGs = data.state;
-    if (document.getElementById('screen-lobby').classList.contains('active')) {
-      document.getElementById('game-chat-msgs').innerHTML = '';
-      showScreen('screen-game');
-    }
-    renderGame(data.state);
-  });
-
-  presenceChannel.bind('chat-msg', (data) => {
-    addChatMsg(data.message);
-  });
-}
-
-function leaveSessionChannel() {
-  if (presenceChannel) {
-    pusher.unsubscribe(presenceChannel.name);
-    presenceChannel = null;
-  }
-}
+let presenceChannel = null;
+let privateChannel  = null;
 
 // ── Colors ────────────────────────────────────────────────
 const COLORS = ['#FF6B6B','#4ECDC4','#FFE66D','#A8E6CF','#FF8B94',
@@ -145,23 +36,7 @@ function toast(text, variant = 'default', duration = 3500) {
   el.addEventListener('click', () => { clearTimeout(t); remove(); });
 }
 
-function showGameInviteToast(data) {
-  const c = document.getElementById('toast-container');
-  const el = document.createElement('div');
-  el.className = 'toast toast-info';
-  el.style.cssText = 'cursor:default;padding:0.9rem 1.1rem;';
-  el.innerHTML = `
-    <div style="font-weight:800;margin-bottom:0.3rem">🃏 Speluitnodiging!</div>
-    <div style="margin-bottom:0.6rem">${esc(data.from.username)} nodigt je uit voor CAH</div>
-    <button style="padding:0.35rem 0.8rem;background:var(--accent4);border:none;border-radius:6px;
-      color:white;font-weight:700;cursor:pointer;font-family:inherit"
-      onclick="Game.joinById('${data.sessionId}')">Meedoen →</button>`;
-  c.appendChild(el);
-  const remove = () => { el.classList.add('out'); setTimeout(() => el.remove(), 300); };
-  setTimeout(remove, 15000);
-}
-
-// ── Screen ────────────────────────────────────────────────
+// ── Screen helpers ────────────────────────────────────────
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id)?.classList.add('active');
@@ -169,7 +44,7 @@ function showScreen(id) {
 function closeModal(id) { document.getElementById(id)?.classList.add('hidden'); }
 function openModal(id)  { document.getElementById(id)?.classList.remove('hidden'); }
 
-// ── Auth tab ──────────────────────────────────────────────
+// ── Auth tab switch ───────────────────────────────────────
 function switchAuthTab(tab) {
   document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.auth-form').forEach(f => f.classList.add('hidden'));
@@ -192,13 +67,156 @@ function selectColor(color, el) {
   el?.classList.add('selected');
 }
 
-// ── API fetch ─────────────────────────────────────────────
+// ── API ───────────────────────────────────────────────────
 async function api(url, method = 'GET', body = null) {
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (myToken) opts.headers['Authorization'] = 'Bearer ' + myToken;
   if (body) opts.body = JSON.stringify(body);
-  const r = await fetch(url, opts);
-  return r.json();
+  try {
+    const r = await fetch(url, opts);
+    return await r.json();
+  } catch (e) {
+    console.error('[api]', url, e);
+    return { error: 'Verbindingsfout' };
+  }
+}
+
+// ── Pusher init ───────────────────────────────────────────
+function initPusher() {
+  if (pusher) return;
+
+  pusher = new Pusher(window.PUSHER_KEY, {
+    cluster: window.PUSHER_CLUSTER,
+    authEndpoint: '/api/pusher-auth',
+    auth: {
+      headers: { Authorization: 'Bearer ' + myToken },
+    },
+  });
+
+  pusher.connection.bind('connected', () => {
+    console.log('[Pusher] connected');
+  });
+
+  pusher.connection.bind('error', (e) => {
+    console.error('[Pusher] connection error', e);
+  });
+
+  // Personal private channel for friend requests & game invites
+  privateChannel = pusher.subscribe(`private-user-${myUser.id}`);
+
+  privateChannel.bind('pusher:subscription_succeeded', () => {
+    console.log('[Pusher] subscribed to private channel');
+  });
+
+  privateChannel.bind('pusher:subscription_error', (e) => {
+    console.error('[Pusher] private channel auth error', e);
+  });
+
+  privateChannel.bind('friend-request', (data) => {
+    toast(`👥 Vriendschapsverzoek van ${data.from.username}!`, 'info', 8000);
+    loadFriends();
+  });
+
+  privateChannel.bind('friend-accepted', (data) => {
+    toast(`🎉 ${data.user.username} is nu jouw vriend!`, 'success', 5000);
+    loadFriends();
+  });
+
+  privateChannel.bind('game-invite', (data) => {
+    showGameInviteToast(data);
+  });
+}
+
+// ── Session presence channel ──────────────────────────────
+function joinSessionChannel(sid) {
+  if (presenceChannel) {
+    pusher.unsubscribe(presenceChannel.name);
+    presenceChannel = null;
+  }
+
+  presenceChannel = pusher.subscribe(`presence-session-${sid}`);
+
+  presenceChannel.bind('pusher:subscription_succeeded', () => {
+    console.log('[Pusher] joined session channel:', sid);
+  });
+
+  presenceChannel.bind('pusher:subscription_error', (e) => {
+    console.error('[Pusher] session channel error', e);
+    toast('Verbindingsfout met spelsessie', 'error');
+  });
+
+  presenceChannel.bind('player-joined', (data) => {
+    if (mySession) mySession.players = data.players;
+    renderLobby(data.players, mySession?.settings, mySession?.id);
+    addSystemMsg(`${data.player.name} heeft de lobby betreden!`);
+    toast(`${data.player.name} is meegedaan! 🎮`, 'info');
+  });
+
+  presenceChannel.bind('player-left', (data) => {
+    if (mySession) {
+      mySession.players = data.players;
+      if (data.newHostId === myUser.id) {
+        isHost = true;
+        mySession.isHost = true;
+        toast('Je bent nu de host! 👑', 'info');
+      }
+    }
+    renderLobby(data.players, mySession?.settings, mySession?.id);
+    addSystemMsg(`${data.name} heeft de lobby verlaten`);
+  });
+
+  presenceChannel.bind('settings-update', (settings) => {
+    if (mySession) mySession.settings = settings;
+    const el = document.getElementById('lobby-maxpts-display');
+    if (el) el.textContent = settings.maxPoints || 7;
+  });
+
+  presenceChannel.bind('game-state', (data) => {
+    // Each player only renders their own personalised state
+    if (data.targetUserId && data.targetUserId !== myUser.id) return;
+
+    currentGs = data.state;
+
+    // Transition from lobby to game screen
+    if (document.getElementById('screen-lobby').classList.contains('active')) {
+      document.getElementById('game-chat-msgs').innerHTML = '';
+      showScreen('screen-game');
+    }
+    renderGame(data.state);
+  });
+
+  presenceChannel.bind('chat-msg', (data) => {
+    // Don't add if it came from us (we already added it optimistically)
+    if (data.message.playerId === myUser.id) return;
+    addChatMsg(data.message);
+  });
+}
+
+function leaveSessionChannel() {
+  if (presenceChannel) {
+    pusher.unsubscribe(presenceChannel.name);
+    presenceChannel = null;
+  }
+}
+
+// ── Game invite toast ─────────────────────────────────────
+function showGameInviteToast(data) {
+  const c = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = 'toast toast-info';
+  el.style.cssText = 'cursor:default;padding:0.9rem 1.1rem;min-width:240px;';
+  el.innerHTML = `
+    <div style="font-weight:800;margin-bottom:0.3rem">🃏 Speluitnodiging!</div>
+    <div style="margin-bottom:0.6rem;color:#ccc">${esc(data.from.username)} nodigt je uit voor CAH</div>
+    <button
+      style="padding:0.4rem 1rem;background:var(--accent4);border:none;border-radius:6px;
+             color:white;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem"
+      onclick="Game.joinById('${data.sessionId}',this)">
+      Meedoen →
+    </button>`;
+  c.appendChild(el);
+  const remove = () => { el.classList.add('out'); setTimeout(() => el.remove(), 300); };
+  setTimeout(remove, 20000);
 }
 
 // ── Auth ──────────────────────────────────────────────────
@@ -207,8 +225,8 @@ const Auth = {
     const username = document.getElementById('login-username').value.trim();
     const password = document.getElementById('login-password').value;
     if (!username || !password) { toast('Vul alles in', 'error'); return; }
-    const r = await api('/api/login', 'POST', { username, password }).catch(() => null);
-    if (!r || r.error) { toast(r?.error || 'Verbindingsfout', 'error'); return; }
+    const r = await api('/api/login', 'POST', { username, password });
+    if (r.error) { toast(r.error, 'error'); return; }
     saveAuth(r.token, r.user);
     enterDashboard();
   },
@@ -217,8 +235,8 @@ const Auth = {
     const username = document.getElementById('reg-username').value.trim();
     const password = document.getElementById('reg-password').value;
     if (!username || !password) { toast('Vul alles in', 'error'); return; }
-    const r = await api('/api/register', 'POST', { username, password, avatarColor: selectedColor }).catch(() => null);
-    if (!r || r.error) { toast(r?.error || 'Verbindingsfout', 'error'); return; }
+    const r = await api('/api/register', 'POST', { username, password, avatarColor: selectedColor });
+    if (r.error) { toast(r.error, 'error'); return; }
     saveAuth(r.token, r.user);
     enterDashboard();
   },
@@ -226,14 +244,15 @@ const Auth = {
   logout() {
     localStorage.removeItem('cah_token');
     localStorage.removeItem('cah_user');
-    if (pusher) { pusher.disconnect(); pusher = null; }
-    myToken = null; myUser = null; mySession = null;
+    if (pusher) { pusher.disconnect(); pusher = null; presenceChannel = null; privateChannel = null; }
+    myToken = null; myUser = null; mySession = null; currentGs = null;
     showScreen('screen-auth');
   },
 };
 
 function saveAuth(token, user) {
-  myToken = token; myUser = user;
+  myToken = token;
+  myUser  = user;
   localStorage.setItem('cah_token', token);
   localStorage.setItem('cah_user', JSON.stringify(user));
 }
@@ -251,13 +270,18 @@ async function enterDashboard() {
 }
 
 async function loadFriends() {
-  friends = await api('/api/friends').catch(() => []);
+  const r = await api('/api/friends');
+  if (!r.error) friends = r;
   renderFriendsList();
+  if (mySession && document.getElementById('screen-lobby').classList.contains('active')) {
+    renderLobbyFriendList(mySession.players || []);
+  }
 }
 
 function renderFriendsList() {
   const list = document.getElementById('friends-list');
   if (!list) return;
+
   if (!friends.length) {
     list.innerHTML = '<div class="empty-state">Nog geen vrienden. Voeg iemand toe! 👆</div>';
     return;
@@ -276,12 +300,14 @@ function renderFriendsList() {
         <div class="friend-actions">
           <button class="btn-friend-action btn-friend-accept" onclick="Friends.accept('${f.friendship_id}')">✓</button>
           <button class="btn-friend-action btn-friend-decline" onclick="Friends.decline('${f.friendship_id}')">✕</button>
-        </div></div>`;
+        </div>
+      </div>`;
     } else {
       html += `<div class="friend-row">
         <div class="friend-avatar" style="background:${f.color}">${f.username[0].toUpperCase()}</div>
         <div class="friend-name">${esc(f.username)}</div>
-        <span class="pending-badge">verstuurd</span></div>`;
+        <span class="pending-badge">verstuurd</span>
+      </div>`;
     }
   });
 
@@ -296,21 +322,27 @@ function renderFriendsList() {
 }
 
 async function loadStats() {
-  const data = await api('/api/me').catch(() => ({}));
-  document.getElementById('stat-wins').textContent   = data.wins || 0;
+  const data = await api('/api/me');
+  if (data.error) return;
+  document.getElementById('stat-wins').textContent   = data.wins          || 0;
   document.getElementById('stat-rounds').textContent = data.rounds_played || 0;
-  document.getElementById('stat-czar').textContent   = data.czar_picks || 0;
-  document.getElementById('stat-streak').textContent = data.best_streak || 0;
+  document.getElementById('stat-czar').textContent   = data.czar_picks    || 0;
+  document.getElementById('stat-streak').textContent = data.best_streak   || 0;
 }
 
 async function loadLeaderboard() {
   const list = document.getElementById('leaderboard-list');
-  const data = await api('/api/leaderboard').catch(() => []);
-  if (!data.length) { list.innerHTML = '<div class="empty-state">Nog geen data</div>'; return; }
+  const data = await api('/api/leaderboard');
+  if (!data || data.error || !data.length) {
+    list.innerHTML = '<div class="empty-state">Nog geen data</div>';
+    return;
+  }
   list.innerHTML = data.map((u, i) => `
     <div class="lb-row">
       <div class="lb-rank ${i < 3 ? 'top' : ''}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
-      <div class="friend-avatar" style="background:${u.color};width:28px;height:28px;font-size:0.75rem">${u.username[0].toUpperCase()}</div>
+      <div class="friend-avatar" style="background:${u.color};width:28px;height:28px;font-size:0.75rem">
+        ${u.username[0].toUpperCase()}
+      </div>
       <div class="lb-name">${esc(u.username)}</div>
       <div><span class="lb-wins">${u.wins}</span><span class="lb-label"> wins</span></div>
     </div>`).join('');
@@ -327,8 +359,8 @@ const Friends = {
   async sendRequest() {
     const username = document.getElementById('addfriend-input').value.trim();
     if (!username) { toast('Vul een gebruikersnaam in', 'error'); return; }
-    const r = await api('/api/friends', 'POST', { username }).catch(() => null);
-    if (!r || r.error) { toast(r?.error || 'Fout', 'error'); return; }
+    const r = await api('/api/friends', 'POST', { username });
+    if (r.error) { toast(r.error, 'error'); return; }
     closeModal('modal-addfriend');
     toast(r.status === 'accepted'
       ? `Je bent nu vrienden met ${username}! 🎉`
@@ -337,7 +369,8 @@ const Friends = {
   },
 
   async accept(friendshipId) {
-    await api('/api/friends-action', 'POST', { action: 'accept', friendshipId });
+    const r = await api('/api/friends-action', 'POST', { action: 'accept', friendshipId });
+    if (r.error) { toast(r.error, 'error'); return; }
     toast('Vriendschapsverzoek geaccepteerd! 🎉', 'success');
     loadFriends();
   },
@@ -348,25 +381,46 @@ const Friends = {
   },
 };
 
-// ── Game create ───────────────────────────────────────────
+// ── Game create helpers ───────────────────────────────────
 function selectPts(el, pts) {
   selectedPts = pts;
   document.querySelectorAll('.pts-opt').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
 }
 
+function renderCustomCards() {
+  const bl = document.getElementById('custom-black-list');
+  const wl = document.getElementById('custom-white-list');
+  if (bl) bl.innerHTML = customBlack.map((c, i) =>
+    `<span class="custom-card-chip chip-black">
+      ${esc(c.length > 30 ? c.slice(0,30)+'…' : c)}
+      <button class="chip-remove" onclick="customBlack.splice(${i},1);renderCustomCards()">✕</button>
+    </span>`).join('');
+  if (wl) wl.innerHTML = customWhite.map((c, i) =>
+    `<span class="custom-card-chip chip-white">
+      ${esc(c.length > 30 ? c.slice(0,30)+'…' : c)}
+      <button class="chip-remove" onclick="customWhite.splice(${i},1);renderCustomCards()">✕</button>
+    </span>`).join('');
+}
+
+// ── Game ──────────────────────────────────────────────────
 const Game = {
   showCreate() {
-    customBlack = []; customWhite = [];
+    customBlack = [];
+    customWhite = [];
     renderCustomCards();
     openModal('modal-create');
   },
 
   addCustomCard(type) {
-    const input = document.getElementById(type === 'black' ? 'custom-black-input' : 'custom-white-input');
+    const inputId = type === 'black' ? 'custom-black-input' : 'custom-white-input';
+    const input = document.getElementById(inputId);
     const val = input?.value.trim();
     if (!val) return;
-    if (type === 'black' && !val.includes('___')) { toast('Zwarte kaart moet ___ bevatten!', 'error'); return; }
+    if (type === 'black' && !val.includes('___')) {
+      toast('Zwarte kaart moet ___ bevatten!', 'error');
+      return;
+    }
     if (type === 'black') customBlack.push(val);
     else customWhite.push(val);
     input.value = '';
@@ -381,43 +435,50 @@ const Game = {
       customWhite,
     });
     if (r.error) { toast(r.error, 'error'); return; }
-    mySession = { id: r.sessionId, isHost: true, players: r.players, settings: r.settings };
+
+    mySession = {
+      id: r.sessionId,
+      isHost: true,
+      players: r.players,
+      settings: r.settings,
+    };
     isHost = true;
+
     document.getElementById('lobby-chat-msgs').innerHTML = '';
     showScreen('screen-lobby');
     renderLobby(r.players, r.settings, r.sessionId);
     joinSessionChannel(r.sessionId);
+    loadFriends();
   },
 
-  async joinById(sessionId) {
-    // Dismiss invite toasts
+  async joinById(sessionId, btnEl) {
+    if (btnEl) btnEl.disabled = true;
+
+    // Close all invite toasts
     document.querySelectorAll('.toast').forEach(t => {
-      t.classList.add('out'); setTimeout(() => t.remove(), 300);
+      t.classList.add('out');
+      setTimeout(() => t.remove(), 300);
     });
+
     const r = await api(`/api/session/${sessionId}`, 'POST', { action: 'join' });
     if (r.error) { toast(r.error, 'error'); return; }
-    mySession = { id: sessionId, isHost: r.isHost, players: r.players, settings: r.settings };
+
+    mySession = {
+      id: sessionId,
+      isHost: r.isHost,
+      players: r.players,
+      settings: r.settings,
+    };
     isHost = r.isHost;
+
     document.getElementById('lobby-chat-msgs').innerHTML = '';
     showScreen('screen-lobby');
     renderLobby(r.players, r.settings, sessionId);
     joinSessionChannel(sessionId);
 
-    // If game already in progress, render it
-    if (r.gameState && r.gameState.phase) {
-      const gs = r.gameState;
-      // build a minimal player view
-      currentGs = {
-        ...gs,
-        myHand: gs.hands?.[myUser.id] || [],
-        hasSubmitted: !!gs.submissions?.[myUser.id],
-        mySubmission: gs.submissions?.[myUser.id] || null,
-        players: r.players.map(p => ({ id: p.userId, name: p.name, color: p.color, isHost: p.isHost, score: gs.scores?.[p.userId] || 0 })),
-        czarName: r.players.find(p => p.userId === gs.czar)?.name || '?',
-        lastWinnerName: r.players.find(p => p.userId === gs.lastWinner)?.name || '?',
-        maxPoints: r.settings.maxPoints,
-        submittedIds: Object.keys(gs.submissions || {}),
-      };
+    // If game already running, show it
+    if (r.gameState?.phase) {
+      currentGs = buildClientState(r.gameState, r.players, r.settings?.maxPoints || 7);
       document.getElementById('game-chat-msgs').innerHTML = '';
       showScreen('screen-game');
       renderGame(currentGs);
@@ -425,15 +486,23 @@ const Game = {
   },
 
   lobbyAddCard(type) {
-    const input = document.getElementById(type === 'black' ? 'lob-black-input' : 'lob-white-input');
+    const inputId = type === 'black' ? 'lob-black-input' : 'lob-white-input';
+    const input = document.getElementById(inputId);
     const val = input?.value.trim();
     if (!val) return;
-    if (type === 'black' && !val.includes('___')) { toast('Zwarte kaart moet ___ bevatten!', 'error'); return; }
+    if (type === 'black' && !val.includes('___')) {
+      toast('Zwarte kaart moet ___ bevatten!', 'error');
+      return;
+    }
+    if (!mySession) return;
+
+    const settings = mySession.settings || {};
     api(`/api/session/${mySession.id}`, 'POST', {
       action: 'settings',
-      customBlack: type === 'black' ? [...(mySession.settings.customBlack || []), val] : undefined,
-      customWhite: type === 'white' ? [...(mySession.settings.customWhite || []), val] : undefined,
-    }).then(() => {
+      ...(type === 'black' ? { customBlack: [...(settings.customBlack || []), val] } : {}),
+      ...(type === 'white' ? { customWhite: [...(settings.customWhite || []), val] } : {}),
+    }).then(r => {
+      if (r.error) { toast(r.error, 'error'); return; }
       toast('✅ Kaart toegevoegd!', 'success');
       input.value = '';
     });
@@ -441,8 +510,23 @@ const Game = {
 
   async start() {
     if (!isHost || !mySession) return;
+    const btn = document.getElementById('btn-start-game');
+    if (btn) btn.disabled = true;
     const r = await api(`/api/game/${mySession.id}`, 'POST', { action: 'start' });
-    if (r.error) { toast(r.error, 'error'); }
+    if (r.error) {
+      toast(r.error, 'error');
+      if (btn) btn.disabled = false;
+    }
+  },
+
+  async inviteFriend(friendId) {
+    if (!mySession) return;
+    const r = await api(`/api/session/${mySession.id}`, 'POST', {
+      action: 'invite',
+      friendId,
+    });
+    if (r.error) { toast(r.error, 'error'); return; }
+    toast('Uitnodiging verstuurd! 📨', 'success');
   },
 
   async leave() {
@@ -450,73 +534,81 @@ const Game = {
     if (mySession) {
       await api(`/api/session/${mySession.id}`, 'POST', { action: 'leave' }).catch(() => {});
       leaveSessionChannel();
-      mySession = null; currentGs = null; isHost = false;
     }
+    mySession = null;
+    currentGs = null;
+    isHost    = false;
     showScreen('screen-dashboard');
-    loadFriends(); loadStats();
-  },
-
-  async inviteFriend(friendId) {
-    if (!mySession) return;
-    await api(`/api/session/${mySession.id}`, 'POST', { action: 'invite', friendId });
-    toast('Uitnodiging verstuurd! 📨', 'success');
+    loadFriends();
+    loadStats();
   },
 
   sendChat() {
     const inLobby = document.getElementById('screen-lobby').classList.contains('active');
     const inputId = inLobby ? 'lobby-chat-input' : 'game-chat-input';
-    const input = document.getElementById(inputId);
-    const text = input?.value.trim();
+    const input   = document.getElementById(inputId);
+    const text    = input?.value.trim();
     if (!text || !mySession) return;
     input.value = '';
 
-    // Optimistically add message locally
-    const m = {
-      playerId: myUser.id,
-      playerName: myUser.username,
+    // Add locally immediately — server pushes to others only
+    addChatMsg({
+      playerId:    myUser.id,
+      playerName:  myUser.username,
       playerColor: myUser.color,
       text,
-    };
-    addChatMsg(m);
+    });
 
-    // Push via Pusher server-side trigger
     api('/api/chat', 'POST', { sessionId: mySession.id, text }).catch(() => {});
   },
 };
 
-// ── Custom cards preview ──────────────────────────────────
-function renderCustomCards() {
-  const bl = document.getElementById('custom-black-list');
-  const wl = document.getElementById('custom-white-list');
-  if (bl) bl.innerHTML = customBlack.map((c, i) =>
-    `<span class="custom-card-chip chip-black">${esc(c.length>30?c.slice(0,30)+'…':c)}
-     <button class="chip-remove" onclick="customBlack.splice(${i},1);renderCustomCards()">✕</button></span>`
-  ).join('');
-  if (wl) wl.innerHTML = customWhite.map((c, i) =>
-    `<span class="custom-card-chip chip-white">${esc(c.length>30?c.slice(0,30)+'…':c)}
-     <button class="chip-remove" onclick="customWhite.splice(${i},1);renderCustomCards()">✕</button></span>`
-  ).join('');
+// Build a client-visible game state from raw DB state (used on reconnect)
+function buildClientState(gs, players, maxPoints) {
+  return {
+    ...gs,
+    myHand:         gs.hands?.[myUser.id] || [],
+    hasSubmitted:   !!gs.submissions?.[myUser.id],
+    mySubmission:   gs.submissions?.[myUser.id] || null,
+    submittedIds:   Object.keys(gs.submissions || {}),
+    czarName:       players.find(p => p.userId === gs.czar)?.name || '?',
+    lastWinnerName: players.find(p => p.userId === gs.lastWinner)?.name || '?',
+    maxPoints,
+    players: players.map(p => ({
+      id:     p.userId,
+      name:   p.name,
+      color:  p.color,
+      isHost: p.isHost,
+      score:  gs.scores?.[p.userId] || 0,
+    })),
+  };
 }
 
 // ── Lobby render ──────────────────────────────────────────
 function renderLobby(players, settings, sessionId) {
-  document.getElementById('lobby-session-id').textContent = sessionId || '';
-  document.getElementById('lobby-maxpts-display').textContent = settings?.maxPoints || 7;
+  const sidEl = document.getElementById('lobby-session-id');
+  if (sidEl) sidEl.textContent = sessionId || '';
+
+  const mptsEl = document.getElementById('lobby-maxpts-display');
+  if (mptsEl) mptsEl.textContent = settings?.maxPoints || 7;
 
   const grid = document.getElementById('lobby-players');
   if (grid) {
     grid.innerHTML = players.map(p => `
       <div class="player-row">
         <div class="player-avatar" style="background:${p.color}">${p.name[0].toUpperCase()}</div>
-        <div class="player-name">${esc(p.name)}
+        <div class="player-name">
+          ${esc(p.name)}
           ${p.userId === myUser?.id ? '<span class="player-you">(jij)</span>' : ''}
         </div>
-        ${p.isHost ? '<span class="player-host">👑 Host</span>' : '<span style="color:var(--text3);font-size:.75rem">🎮</span>'}
+        ${p.isHost
+          ? '<span class="player-host">👑 Host</span>'
+          : '<span style="color:var(--text3);font-size:.75rem">🎮</span>'}
       </div>`).join('');
   }
 
-  const hostCtrl = document.getElementById('lobby-host-controls');
-  const waitMsg  = document.getElementById('lobby-waiting-msg');
+  const hostCtrl  = document.getElementById('lobby-host-controls');
+  const waitMsg   = document.getElementById('lobby-waiting-msg');
   const inviteSec = document.getElementById('lobby-invite-section');
 
   if (isHost) {
@@ -537,23 +629,28 @@ function renderLobby(players, settings, sessionId) {
 function renderLobbyFriendList(currentPlayers) {
   const list = document.getElementById('lobby-friend-list');
   if (!list) return;
-  const accepted = friends.filter(f => f.status === 'accepted');
-  const inGame = new Set(currentPlayers.map(p => p.userId));
 
+  const accepted = friends.filter(f => f.status === 'accepted');
   if (!accepted.length) {
     list.innerHTML = '<div class="empty-state" style="padding:.75rem">Nog geen vrienden om uit te nodigen</div>';
     return;
   }
+
+  const inGame = new Set(currentPlayers.map(p => p.userId));
   list.innerHTML = accepted.map(f => {
     const already = inGame.has(f.id);
-    return `<div class="lobby-friend-row">
-      <div class="friend-avatar" style="background:${f.color};width:28px;height:28px;font-size:.75rem">${f.username[0].toUpperCase()}</div>
-      <div class="friend-name">${esc(f.username)}</div>
-      ${already
-        ? '<span style="font-size:.75rem;color:var(--accent3)">✓ In spel</span>'
-        : `<button class="btn-friend-action btn-friend-invite" onclick="Game.inviteFriend('${f.id}')">Uitnodigen</button>`
-      }
-    </div>`;
+    return `
+      <div class="lobby-friend-row">
+        <div class="friend-avatar"
+             style="background:${f.color};width:28px;height:28px;font-size:.75rem">
+          ${f.username[0].toUpperCase()}
+        </div>
+        <div class="friend-name">${esc(f.username)}</div>
+        ${already
+          ? '<span style="font-size:.75rem;color:var(--accent3)">✓ In spel</span>'
+          : `<button class="btn-friend-action btn-friend-invite"
+               onclick="Game.inviteFriend('${f.id}')">Uitnodigen</button>`}
+      </div>`;
   }).join('');
 }
 
@@ -563,13 +660,14 @@ function renderGame(state) {
   const main = document.getElementById('game-main');
   if (!main) return;
 
-  // Score pills
   const pills = document.getElementById('game-score-pills');
   if (pills) {
     pills.innerHTML = (state.players || []).map(p => {
-      const czar = p.id === state.czar;
-      return `<div class="score-pill ${czar?'czar':''}" style="background:${p.color}22;border-color:${p.color}66;color:${p.color}">
-        ${czar?'👑 ':''}${esc(p.name)}: ${p.score}</div>`;
+      const isCzar = p.id === state.czar;
+      return `<div class="score-pill ${isCzar ? 'czar' : ''}"
+        style="background:${p.color}22;border-color:${p.color}66;color:${p.color}">
+        ${isCzar ? '👑 ' : ''}${esc(p.name)}: ${p.score}
+      </div>`;
     }).join('');
   }
 
@@ -581,9 +679,9 @@ function renderGame(state) {
 }
 
 function renderPlaying(main, state) {
-  const isCzar = state.czar === myUser?.id;
-  const needed = (state.players?.length || 1) - 1;
-  const submittedCount = state.submittedIds?.length || 0;
+  const isCzar   = state.czar === myUser?.id;
+  const needed   = (state.players?.length || 1) - 1;
+  const subCount = state.submittedIds?.length || 0;
 
   main.innerHTML = `
     <div class="cah-round-bar">
@@ -600,14 +698,14 @@ function renderPlaying(main, state) {
         <div class="czar-icon">👑</div>
         <div class="czar-box-title">Jij bent de Kaart Tsaar!</div>
         <div class="czar-box-sub">Wacht tot iedereen een kaart heeft gespeeld.</div>
-        <div class="submitted-count">${submittedCount} / ${needed} ingestuurd</div>
+        <div class="submitted-count">${subCount} / ${needed} ingestuurd</div>
       </div>`
     : state.hasSubmitted ? `
       <div class="submitted-box">
         <div class="czar-icon">✅</div>
         <div class="czar-box-title">Kaart gespeeld!</div>
         <div class="submitted-card-preview">"${esc(state.mySubmission || '')}"</div>
-        <div class="submitted-count">${submittedCount} / ${needed} ingestuurd</div>
+        <div class="submitted-count">${subCount} / ${needed} ingestuurd</div>
       </div>`
     : `
       <div class="hand-label">Kies jouw grappigste antwoord:</div>
@@ -621,8 +719,8 @@ function renderPlaying(main, state) {
 }
 
 function renderJudging(main, state) {
-  const isCzar = state.czar === myUser?.id;
-  const cards = Object.values(state.submissions || {});
+  const isCzar  = state.czar === myUser?.id;
+  const cards   = Object.values(state.submissions || {});
   const shuffled = [...cards].sort(() => Math.random() - 0.5);
 
   main.innerHTML = `
@@ -649,7 +747,7 @@ function renderJudging(main, state) {
 }
 
 function renderScores(main, state) {
-  const maxPts = state.maxPoints || 7;
+  const maxPts      = state.maxPoints || 7;
   const roundWinner = state.players?.find(p => p.id === state.lastWinner);
   const gameWinner  = state.players?.find(p => p.id === state.winner);
 
@@ -670,13 +768,17 @@ function renderScores(main, state) {
 
   html += '<div class="scores-list">';
   [...(state.players || [])]
-    .sort((a, b) => (state.scores?.[b.id]||0) - (state.scores?.[a.id]||0))
+    .sort((a, b) => (state.scores?.[b.id] || 0) - (state.scores?.[a.id] || 0))
     .forEach(p => {
       const pts = state.scores?.[p.id] || 0;
-      html += `<div class="score-row ${p.id===state.lastWinner?'is-winner':''}">
-        <div class="friend-avatar" style="background:${p.color};width:28px;height:28px;font-size:.75rem;flex-shrink:0">${p.name[0].toUpperCase()}</div>
+      html += `<div class="score-row ${p.id === state.lastWinner ? 'is-winner' : ''}">
+        <div class="friend-avatar" style="background:${p.color};width:28px;height:28px;font-size:.75rem;flex-shrink:0">
+          ${p.name[0].toUpperCase()}
+        </div>
         <div class="score-player-name">${esc(p.name)}</div>
-        <div class="score-bar-wrap"><div class="score-bar" style="width:${Math.min(100,(pts/maxPts)*100)}%"></div></div>
+        <div class="score-bar-wrap">
+          <div class="score-bar" style="width:${Math.min(100,(pts/maxPts)*100)}%"></div>
+        </div>
         <div class="score-pts">${pts}/${maxPts}</div>
       </div>`;
     });
@@ -687,8 +789,12 @@ function renderScores(main, state) {
       ${state.winner ? '🔄 Nieuw spel' : '➡️ Volgende ronde'}
     </button>`;
   } else {
-    html += '<div class="waiting-msg"><div class="loading-dots"><span></span><span></span><span></span></div>Wachten op host...</div>';
+    html += `<div class="waiting-msg">
+      <div class="loading-dots"><span></span><span></span><span></span></div>
+      Wachten op host...
+    </div>`;
   }
+
   main.innerHTML = html;
 }
 
@@ -697,48 +803,58 @@ const CAH = {
   submit(el, card) {
     document.querySelectorAll('.white-card').forEach(c => c.classList.remove('selected'));
     el?.classList.add('selected');
-    setTimeout(() => api(`/api/game/${mySession.id}`, 'POST', { action: 'submit', card }).then(r => {
-      if (r.error) toast(r.error, 'error');
-    }), 200);
+    setTimeout(() => {
+      api(`/api/game/${mySession.id}`, 'POST', { action: 'submit', card })
+        .then(r => { if (r.error) toast(r.error, 'error'); });
+    }, 200);
   },
 
   pickWinner(card) {
-    api(`/api/game/${mySession.id}`, 'POST', { action: 'pick-winner', card }).then(r => {
-      if (r.error) toast(r.error, 'error');
-    });
+    api(`/api/game/${mySession.id}`, 'POST', { action: 'pick-winner', card })
+      .then(r => { if (r.error) toast(r.error, 'error'); });
   },
 
   nextRound() {
-    api(`/api/game/${mySession.id}`, 'POST', { action: 'next-round' }).then(r => {
-      if (r.error) toast(r.error, 'error');
-    });
+    api(`/api/game/${mySession.id}`, 'POST', { action: 'next-round' })
+      .then(r => { if (r.error) toast(r.error, 'error'); });
   },
 };
 
 // ── Chat ──────────────────────────────────────────────────
-function addChatMsg(msg, scroll = true) {
+function addChatMsg(msg) {
   const inLobby = document.getElementById('screen-lobby').classList.contains('active');
   const chatId  = inLobby ? 'lobby-chat-msgs' : 'game-chat-msgs';
   const el = document.getElementById(chatId);
   if (!el) return;
 
   const isMe = msg.playerId === myUser?.id;
-  const div = document.createElement('div');
-  div.className = `chat-msg ${isMe ? 'mine' : ''} ${msg.system ? 'system' : ''}`;
-
-  if (msg.system) {
-    div.textContent = msg.text;
-  } else {
-    div.innerHTML = `<div class="chat-msg-name" style="color:${msg.playerColor||'#aaa'}">${esc(msg.playerName||'')}</div>
-      <div class="chat-msg-text">${esc(msg.text||'')}</div>`;
-  }
+  const div  = document.createElement('div');
+  div.className = `chat-msg ${isMe ? 'mine' : ''}`;
+  div.innerHTML = `
+    <div class="chat-msg-name" style="color:${msg.playerColor || '#aaa'}">${esc(msg.playerName || '')}</div>
+    <div class="chat-msg-text">${esc(msg.text || '')}</div>`;
   el.appendChild(div);
-  if (scroll) el.scrollTop = el.scrollHeight;
+  el.scrollTop = el.scrollHeight;
 
-  if (!inLobby && document.getElementById('game-chat-panel')?.classList.contains('hidden') && !isMe) {
-    chatUnread++;
-    document.querySelector('.chat-btn-badge')?.classList.add('show');
+  if (!inLobby) {
+    const panel = document.getElementById('game-chat-panel');
+    if (panel?.classList.contains('hidden') && !isMe) {
+      chatUnread++;
+      document.querySelector('.chat-btn-badge')?.classList.add('show');
+    }
   }
+}
+
+function addSystemMsg(text) {
+  const inLobby = document.getElementById('screen-lobby').classList.contains('active');
+  const chatId  = inLobby ? 'lobby-chat-msgs' : 'game-chat-msgs';
+  const el = document.getElementById(chatId);
+  if (!el) return;
+  const div = document.createElement('div');
+  div.className = 'chat-msg system';
+  div.textContent = text;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
 }
 
 function toggleGameChat() {
@@ -763,17 +879,11 @@ function esc(str) {
 document.addEventListener('DOMContentLoaded', () => {
   initColorPicker();
 
-  document.getElementById('login-password')?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') Auth.login();
-  });
-  document.getElementById('reg-password')?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') Auth.register();
-  });
-  document.getElementById('addfriend-input')?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') Friends.sendRequest();
-  });
+  document.getElementById('login-username')?.addEventListener('keydown', e => { if (e.key==='Enter') Auth.login(); });
+  document.getElementById('login-password')?.addEventListener('keydown', e => { if (e.key==='Enter') Auth.login(); });
+  document.getElementById('reg-password')?.addEventListener('keydown',   e => { if (e.key==='Enter') Auth.register(); });
+  document.getElementById('addfriend-input')?.addEventListener('keydown',e => { if (e.key==='Enter') Friends.sendRequest(); });
 
-  // Restore session from localStorage
   const savedToken = localStorage.getItem('cah_token');
   const savedUser  = localStorage.getItem('cah_user');
   if (savedToken && savedUser) {

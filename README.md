@@ -1,6 +1,6 @@
 # 🃏 CAH Friends — Vercel + Pusher Deployment Guide
 
-## Benodigdheden
+## Benodigdheden 
 - GitHub account (gratis)
 - Vercel account (gratis) — vercel.com
 - Supabase database (jij hebt dit al)

@@ -1,0 +1,17 @@
+{
+  "name": "cah-friends",
+  "version": "3.0.0",
+  "description": "Cards Against Humanity met vrienden — Vercel + Pusher",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "pg": "^8.11.3",
+    "jsonwebtoken": "^9.0.2",
+    "pusher": "^5.1.3",
+    "uuid": "^9.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

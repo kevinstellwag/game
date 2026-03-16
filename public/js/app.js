@@ -434,7 +434,7 @@ const Game = {
     if (!isHost || !mySession) return;
     const btn = document.getElementById('btn-start-game');
     if (btn) btn.disabled = true;
-    const r = await api(`/api/game/${mySession.id}`, 'POST', { action: 'start' });
+    const r = await api('/api/game', 'POST', { action: 'start', sessionId: mySession.id });
     if (r.error) { toast(r.error, 'error'); if (btn) btn.disabled = false; }
   },
 
@@ -656,15 +656,15 @@ const CAH = {
   submit(el, card) {
     document.querySelectorAll('.white-card').forEach(c => c.classList.remove('selected'));
     el?.classList.add('selected');
-    setTimeout(() => api(`/api/game/${mySession.id}`, 'POST', { action: 'submit', card })
+    setTimeout(() => api('/api/game', 'POST', { action: 'submit', card, sessionId: mySession.id })
       .then(r => { if (r.error) toast(r.error, 'error'); }), 200);
   },
   pickWinner(card) {
-    api(`/api/game/${mySession.id}`, 'POST', { action: 'pick-winner', card })
+    api('/api/game', 'POST', { action: 'pick-winner', card, sessionId: mySession.id })
       .then(r => { if (r.error) toast(r.error, 'error'); });
   },
   nextRound() {
-    api(`/api/game/${mySession.id}`, 'POST', { action: 'next-round' })
+    api('/api/game', 'POST', { action: 'next-round', sessionId: mySession.id })
       .then(r => { if (r.error) toast(r.error, 'error'); });
   },
 };

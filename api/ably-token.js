@@ -11,19 +11,16 @@ module.exports = async (req, res) => {
   try {
     const ably = new Ably.Rest({ key: process.env.ABLY_API_KEY });
 
-    // createTokenRequest with callback-style wrapped in Promise
+    // Use wildcard capability — allow all channels for this token
     const tokenRequest = await new Promise((resolve, reject) => {
       ably.auth.createTokenRequest(
         {
           clientId: user.id,
-          capability: {
-            [`user-${user.id}`]: ['subscribe', 'publish'],
-            'session-*': ['subscribe', 'publish'],
-          },
+          capability: { '*': ['subscribe', 'publish', 'presence', 'history'] },
         },
         null,
-        (err, tokenRequest) => {
-          if (err) reject(err);
+        (e, tokenRequest) => {
+          if (e) reject(e);
           else resolve(tokenRequest);
         }
       );

@@ -1,221 +1,149 @@
-const {
-  db, verifyToken, push, sessionChannel, parseBody,
-  ok, err, cors,
-  BLACK_CARDS, WHITE_CARDS, shuffle,
-} = require('../_lib');
-
-function startCAH(session) {
-  const extra_b = session.custom_black || [];
-  const extra_w = session.custom_white || [];
-  const bDeck = shuffle([...extra_b, ...BLACK_CARDS]);
-  const wDeck = shuffle([...extra_w, ...WHITE_CARDS]);
-  const players = session.players.map(p => p.userId);
-
-  const hands = {};
-  let wi = 0;
-  players.forEach(p => { hands[p] = wDeck.slice(wi, wi + 7); wi += 7; });
-
-  return {
-    phase: 'playing',
-    round: 1,
-    czarIndex: 0,
-    czar: players[0],
-    currentBlack: bDeck[0],
-    blackDeck: bDeck.slice(1),
-    whiteDeck: wDeck.slice(wi),
-    hands,
-    submissions: {},
-    scores: Object.fromEntries(players.map(p => [p, 0])),
-    winner: null,
-    lastWinner: null,
-    lastWinnerName: null,
-    lastWinningCard: null,
-    lastBlackCard: null,
-  };
-}
-
-function playerView(gs, playerId, players, maxPoints) {
-  const czarPlayer = players.find(p => p.userId === gs.czar);
-  const lastWinnerPlayer = players.find(p => p.userId === gs.lastWinner);
-  const showSubs = gs.phase === 'judging' || gs.phase === 'scores';
-  return {
-    phase: gs.phase,
-    round: gs.round,
-    czar: gs.czar,
-    czarName: czarPlayer?.name || '?',
-    currentBlack: gs.currentBlack,
-    submissions: showSubs ? gs.submissions : {},
-    submittedIds: Object.keys(gs.submissions),
-    scores: gs.scores,
-    winner: gs.winner,
-    lastWinner: gs.lastWinner,
-    lastWinnerName: lastWinnerPlayer?.name || '?',
-    lastWinningCard: gs.lastWinningCard,
-    lastBlackCard: gs.lastBlackCard,
-    myHand: gs.hands?.[playerId] || [],
-    hasSubmitted: !!gs.submissions?.[playerId],
-    mySubmission: gs.submissions?.[playerId] || null,
-    maxPoints,
-    players: players.map(p => ({
-      id: p.userId, name: p.name, color: p.color,
-      isHost: p.isHost, score: gs.scores?.[p.userId] || 0,
-    })),
-  };
-}
+const { db, verifyToken, push, sessionChannel, userChannel, parseBody, ok, err, cors } = require('../_lib');
 
 module.exports = async (req, res) => {
   cors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return err(res, 405, 'Method not allowed');
 
   const user = verifyToken(req);
   if (!user) return err(res, 401, 'Niet ingelogd');
 
   const sid = req.query.id || req.url.split('/').pop().split('?')[0];
-  const body = await parseBody(req);
-  const { action } = body;
 
   try {
     const r = await db.query('SELECT * FROM game_sessions WHERE id=$1', [sid]);
     if (!r.rows[0]) return err(res, 404, 'Sessie niet gevonden');
-
     const session = r.rows[0];
     let players = session.players || [];
-    let gs = session.game_state;
-    const isHost = session.host_id === user.id;
-    const maxPoints = session.max_points || 7;
 
-    // START
-    if (action === 'start') {
-      if (!isHost) return err(res, 403, 'Alleen de host kan starten');
-      if (players.length < 2) return err(res, 400, 'Minimaal 2 spelers nodig');
-
-      gs = startCAH({ ...session, players });
-      gs.maxPoints = maxPoints;
-
-      await db.query(
-        "UPDATE game_sessions SET game_state=$1, status='playing', updated_at=NOW() WHERE id=$2",
-        [JSON.stringify(gs), sid]
-      );
-
-      for (const p of players) {
-        await push(sessionChannel(sid), 'game-state', {
-          targetUserId: p.userId,
-          state: playerView(gs, p.userId, players, maxPoints),
-        });
-      }
-      return ok(res, { ok: true });
-    }
-
-    if (!gs) return err(res, 400, 'Spel nog niet gestart');
-
-    // SUBMIT
-    if (action === 'submit') {
-      const { card } = body;
-      if (gs.phase !== 'playing') return err(res, 400, 'Verkeerde fase');
-      if (user.id === gs.czar) return err(res, 400, 'Tsaar kan niet submitten');
-      if (gs.submissions[user.id]) return err(res, 400, 'Al gespeeld');
-      if (!gs.hands[user.id]?.includes(card)) return err(res, 400, 'Kaart niet in hand');
-
-      gs.submissions[user.id] = card;
-      gs.hands[user.id] = gs.hands[user.id].filter(c => c !== card);
-
-      const nonCzar = players.filter(p => p.userId !== gs.czar);
-      if (nonCzar.every(p => gs.submissions[p.userId])) gs.phase = 'judging';
-
-      await db.query(
-        'UPDATE game_sessions SET game_state=$1, updated_at=NOW() WHERE id=$2',
-        [JSON.stringify(gs), sid]
-      );
-
-      for (const p of players) {
-        await push(sessionChannel(sid), 'game-state', {
-          targetUserId: p.userId,
-          state: playerView(gs, p.userId, players, maxPoints),
-        });
-      }
-      return ok(res, { ok: true });
-    }
-
-    // PICK WINNER
-    if (action === 'pick-winner') {
-      if (gs.phase !== 'judging') return err(res, 400, 'Verkeerde fase');
-      if (user.id !== gs.czar) return err(res, 403, 'Alleen de Tsaar');
-
-      const { card } = body;
-      const winnerId = Object.entries(gs.submissions).find(([, c]) => c === card)?.[0];
-      if (!winnerId) return err(res, 400, 'Kaart niet gevonden');
-
-      gs.scores[winnerId] = (gs.scores[winnerId] || 0) + 1;
-      gs.lastWinner = winnerId;
-      gs.lastWinningCard = card;
-      gs.lastBlackCard = gs.currentBlack;
-      gs.phase = 'scores';
-      if (gs.scores[winnerId] >= maxPoints) gs.winner = winnerId;
-
-      await db.query(
-        'UPDATE game_sessions SET game_state=$1, updated_at=NOW() WHERE id=$2',
-        [JSON.stringify(gs), sid]
-      );
-
-      db.query('UPDATE user_stats SET czar_picks=czar_picks+1 WHERE user_id=$1', [user.id]).catch(() => {});
-      db.query('UPDATE user_stats SET wins=wins+1, rounds_played=rounds_played+1 WHERE user_id=$1', [winnerId]).catch(() => {});
-      players.filter(p => p.userId !== winnerId).forEach(p => {
-        db.query('UPDATE user_stats SET rounds_played=rounds_played+1 WHERE user_id=$1', [p.userId]).catch(() => {});
+    // GET
+    if (req.method === 'GET') {
+      return ok(res, {
+        sessionId: sid,
+        status: session.status,
+        isHost: session.host_id === user.id,
+        isInSession: players.some(p => p.userId === user.id),
+        players,
+        settings: {
+          maxPoints: session.max_points,
+          customBlack: session.custom_black || [],
+          customWhite: session.custom_white || [],
+        },
+        gameState: session.game_state,
       });
-
-      for (const p of players) {
-        await push(sessionChannel(sid), 'game-state', {
-          targetUserId: p.userId,
-          state: playerView(gs, p.userId, players, maxPoints),
-        });
-      }
-      return ok(res, { ok: true });
     }
 
-    // NEXT ROUND
-    if (action === 'next-round') {
-      if (gs.phase !== 'scores') return err(res, 400, 'Verkeerde fase');
-      if (!isHost) return err(res, 403, 'Alleen host');
+    // POST
+    if (req.method === 'POST') {
+      const body = await parseBody(req);
+      const { action } = body;
 
-      if (gs.winner) {
-        gs = startCAH({ ...session, players });
-        gs.maxPoints = maxPoints;
-      } else {
-        const playerIds = players.map(p => p.userId);
-        playerIds.forEach(pid => {
-          gs.hands[pid] = gs.hands[pid] || [];
-          while (gs.hands[pid].length < 7 && gs.whiteDeck.length > 0) {
-            gs.hands[pid].push(gs.whiteDeck.shift());
-          }
+      // JOIN
+      if (action === 'join') {
+        if (session.status === 'playing' && !players.some(p => p.userId === user.id))
+          return err(res, 400, 'Spel is al bezig');
+
+        if (!players.some(p => p.userId === user.id)) {
+          const newPlayer = {
+            userId: user.id,
+            name: user.username,
+            color: user.color,
+            isHost: false,
+            score: 0,
+          };
+          players = [...players, newPlayer];
+          await db.query(
+            'UPDATE game_sessions SET players=$1, updated_at=NOW() WHERE id=$2',
+            [JSON.stringify(players), sid]
+          );
+          await push(sessionChannel(sid), 'player-joined', { player: newPlayer, players });
+        }
+
+        return ok(res, {
+          sessionId: sid,
+          isHost: session.host_id === user.id,
+          players,
+          settings: {
+            maxPoints: session.max_points,
+            customBlack: session.custom_black || [],
+            customWhite: session.custom_white || [],
+          },
+          gameState: session.game_state,
         });
-        gs.czarIndex = (gs.czarIndex + 1) % playerIds.length;
-        gs.czar = playerIds[gs.czarIndex];
-        gs.submissions = {};
-        gs.currentBlack = gs.blackDeck.shift() || BLACK_CARDS[Math.floor(Math.random() * BLACK_CARDS.length)];
-        gs.phase = 'playing';
-        gs.round++;
-        gs.lastWinner = null;
-        gs.lastWinningCard = null;
       }
 
-      await db.query(
-        'UPDATE game_sessions SET game_state=$1, updated_at=NOW() WHERE id=$2',
-        [JSON.stringify(gs), sid]
-      );
+      // LEAVE
+      if (action === 'leave') {
+        players = players.filter(p => p.userId !== user.id);
 
-      for (const p of players) {
-        await push(sessionChannel(sid), 'game-state', {
-          targetUserId: p.userId,
-          state: playerView(gs, p.userId, players, maxPoints),
+        if (players.length === 0) {
+          await db.query('DELETE FROM game_sessions WHERE id=$1', [sid]);
+          return ok(res, { ok: true });
+        }
+
+        let newHostId = session.host_id;
+        if (session.host_id === user.id) {
+          players[0].isHost = true;
+          newHostId = players[0].userId;
+        }
+
+        await db.query(
+          'UPDATE game_sessions SET players=$1, host_id=$2, updated_at=NOW() WHERE id=$3',
+          [JSON.stringify(players), newHostId, sid]
+        );
+
+        await push(sessionChannel(sid), 'player-left', {
+          userId: user.id,
+          name: user.username,
+          newHostId,
+          players,
         });
+        return ok(res, { ok: true });
       }
-      return ok(res, { ok: true });
+
+      // INVITE
+      if (action === 'invite') {
+        const friendId = body.friendId || body.userId;
+        if (!friendId) return err(res, 400, 'friendId verplicht');
+        await push(userChannel(friendId), 'game-invite', {
+          from: { id: user.id, username: user.username, color: user.color },
+          sessionId: sid,
+        });
+        return ok(res, { ok: true });
+      }
+
+      // SETTINGS (host only)
+      if (action === 'settings') {
+        if (session.host_id !== user.id) return err(res, 403, 'Alleen de host kan dit');
+        const { maxPoints, customBlack, customWhite } = body;
+        await db.query(
+          `UPDATE game_sessions
+           SET max_points=COALESCE($1, max_points),
+               custom_black=COALESCE($2, custom_black),
+               custom_white=COALESCE($3, custom_white),
+               updated_at=NOW()
+           WHERE id=$4`,
+          [
+            maxPoints || null,
+            customBlack ? JSON.stringify(customBlack) : null,
+            customWhite ? JSON.stringify(customWhite) : null,
+            sid
+          ]
+        );
+        const newSettings = {
+          maxPoints: maxPoints || session.max_points,
+          customBlack: customBlack || session.custom_black || [],
+          customWhite: customWhite || session.custom_white || [],
+        };
+        await push(sessionChannel(sid), 'settings-update', newSettings);
+        return ok(res, newSettings);
+      }
+
+      return err(res, 400, 'Onbekende actie');
     }
 
-    err(res, 400, 'Onbekende actie');
+    err(res, 405, 'Method not allowed');
   } catch (e) {
-    console.error('[game/id]', e.message);
+    console.error('[session/id]', e.message);
     err(res, 500, e.message);
   }
 };

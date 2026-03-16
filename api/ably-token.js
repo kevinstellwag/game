@@ -11,12 +11,22 @@ module.exports = async (req, res) => {
   try {
     const ably = new Ably.Rest({ key: process.env.ABLY_API_KEY });
 
-    const tokenRequest = await ably.auth.createTokenRequest({
-      clientId: user.id,
-      capability: {
-        [`user-${user.id}`]: ['subscribe', 'publish'],
-        'session-*': ['subscribe', 'publish'],
-      },
+    // createTokenRequest with callback-style wrapped in Promise
+    const tokenRequest = await new Promise((resolve, reject) => {
+      ably.auth.createTokenRequest(
+        {
+          clientId: user.id,
+          capability: {
+            [`user-${user.id}`]: ['subscribe', 'publish'],
+            'session-*': ['subscribe', 'publish'],
+          },
+        },
+        null,
+        (err, tokenRequest) => {
+          if (err) reject(err);
+          else resolve(tokenRequest);
+        }
+      );
     });
 
     ok(res, tokenRequest);

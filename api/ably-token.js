@@ -9,18 +9,19 @@ module.exports = async (req, res) => {
   if (!user) return err(res, 401, 'Niet ingelogd');
 
   try {
-    const ably = new Ably.Rest(process.env.ABLY_API_KEY);
-    const tokenParams = {
+    const ably = new Ably.Rest({ key: process.env.ABLY_API_KEY });
+
+    const tokenRequest = await ably.auth.createTokenRequest({
       clientId: user.id,
       capability: {
         [`user-${user.id}`]: ['subscribe', 'publish'],
         'session-*': ['subscribe', 'publish'],
       },
-    };
-    const tokenRequest = await ably.auth.createTokenRequest(tokenParams);
+    });
+
     ok(res, tokenRequest);
   } catch (e) {
     console.error('[ably-token]', e.message);
-    err(res, 500, 'Token aanmaken mislukt');
+    err(res, 500, 'Token aanmaken mislukt: ' + e.message);
   }
 };

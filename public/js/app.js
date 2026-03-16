@@ -102,7 +102,8 @@ async function initAbly() {
 
   ably = new Ably.Realtime({
     authUrl: '/api/ably-token',
-    authHeaders: { Authorization: 'Bearer ' + myToken },
+    authMethod: 'POST',
+    authHeaders: { 'Authorization': 'Bearer ' + myToken, 'Content-Type': 'application/json' },
     clientId: myUser.id,
   });
 
@@ -507,7 +508,7 @@ function renderLobby(players, settings, sessionId) {
     waitMsg?.classList.add('hidden');
     inviteSec?.classList.remove('hidden');
     const warn = document.getElementById('lobby-min-warn');
-    if (players.length < 3) warn?.classList.remove('hidden'); else warn?.classList.add('hidden');
+    if (players.length < 2) warn?.classList.remove('hidden'); else warn?.classList.add('hidden');
     renderLobbyFriendList(players);
   } else {
     hostCtrl?.classList.add('hidden');

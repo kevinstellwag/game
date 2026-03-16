@@ -76,7 +76,7 @@ module.exports = async (req, res) => {
 
     if (action === 'start') {
       if (!isHostUser) return err(res, 403, 'Alleen de host kan starten');
-      if (players.length < 2) return err(res, 400, 'Minimaal 2 spelers nodig');
+      if (players.length < 1) return err(res, 400, 'Geen spelers gevonden');
       gs = startCAH({ ...session, players });
       gs.maxPoints = maxPoints;
       await db.query(

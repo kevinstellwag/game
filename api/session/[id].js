@@ -109,7 +109,8 @@ module.exports = async (req, res) => {
 
       // ── INVITE FRIEND ──
       if (action === 'invite') {
-        const { friendId } = req.body;
+        const friendId = req.body.friendId || req.body.userId;
+        if (!friendId) return err(res, 400, 'friendId verplicht');
         await push(userChannel(friendId), 'game-invite', {
           from: { id: user.id, username: user.username, color: user.color },
           sessionId: sid,

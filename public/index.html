@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>CAH — Cards Against Humanity</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/main.css">
+  <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
+</head>
+<body>
+
+<!-- ============ TOASTS ============ -->
+<div id="toast-container"></div>
+
+<!-- ============ SCREEN: AUTH ============ -->
+<div id="screen-auth" class="screen active">
+  <div class="auth-bg"></div>
+  <div class="auth-wrap">
+    <div class="auth-logo">
+      <div class="logo-cards">
+        <div class="logo-card black">CAH</div>
+        <div class="logo-card white">?</div>
+      </div>
+      <h1 class="logo-title">Cards Against<br><span>Humanity</span></h1>
+      <p class="logo-sub">Voor vreselijk slechte mensen. Zoals jij.</p>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">Inloggen</button>
+      <button class="auth-tab" onclick="switchAuthTab('register')">Account maken</button>
+    </div>
+
+    <div id="auth-login" class="auth-form">
+      <div class="field">
+        <label>Gebruikersnaam</label>
+        <input id="login-username" type="text" placeholder="jouwNaam" autocomplete="username" maxlength="20">
+      </div>
+      <div class="field">
+        <label>Wachtwoord</label>
+        <input id="login-password" type="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn-primary" onclick="Auth.login()">Inloggen →</button>
+    </div>
+
+    <div id="auth-register" class="auth-form hidden">
+      <div class="field">
+        <label>Gebruikersnaam</label>
+        <input id="reg-username" type="text" placeholder="jouwNaam" autocomplete="username" maxlength="20">
+      </div>
+      <div class="field">
+        <label>Wachtwoord (min. 4 tekens)</label>
+        <input id="reg-password" type="password" placeholder="••••••••" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label>Kleur</label>
+        <div class="color-picker" id="color-picker"></div>
+      </div>
+      <button class="btn-primary" onclick="Auth.register()">Account maken →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN: DASHBOARD ============ -->
+<div id="screen-dashboard" class="screen">
+  <header class="dash-header">
+    <div class="dash-logo">🃏 CAH</div>
+    <div class="dash-user" id="dash-user-info">
+      <div class="user-dot" id="dash-user-dot"></div>
+      <span id="dash-username"></span>
+    </div>
+    <button class="btn-icon" onclick="Auth.logout()" title="Uitloggen">↩</button>
+  </header>
+
+  <div class="dash-body">
+    <!-- Play Section -->
+    <section class="dash-section">
+      <h2 class="section-title">🎮 Spelen</h2>
+      <div class="play-cards">
+        <div class="play-card create-card" onclick="Game.showCreate()">
+          <div class="play-card-icon">＋</div>
+          <div class="play-card-label">Nieuw spel</div>
+          <div class="play-card-sub">Maak een spel en nodig vrienden uit</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Friends Section -->
+    <section class="dash-section">
+      <div class="section-header">
+        <h2 class="section-title">👥 Vrienden</h2>
+        <button class="btn-sm-outline" onclick="Friends.showAdd()">+ Toevoegen</button>
+      </div>
+      <div id="friends-list" class="friends-list">
+        <div class="empty-state">Laad vrienden...</div>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="dash-section">
+      <h2 class="section-title">📊 Jouw Stats</h2>
+      <div id="user-stats" class="stats-grid">
+        <div class="stat-card"><div class="stat-num" id="stat-wins">0</div><div class="stat-label">Overwinningen</div></div>
+        <div class="stat-card"><div class="stat-num" id="stat-rounds">0</div><div class="stat-label">Rondes</div></div>
+        <div class="stat-card"><div class="stat-num" id="stat-czar">0</div><div class="stat-label">Tsaar Picks</div></div>
+        <div class="stat-card"><div class="stat-num" id="stat-streak">0</div><div class="stat-label">Beste streak</div></div>
+      </div>
+    </section>
+
+    <!-- Leaderboard -->
+    <section class="dash-section">
+      <h2 class="section-title">🏆 Leaderboard</h2>
+      <div id="leaderboard-list" class="leaderboard-list">
+        <div class="empty-state">Laden...</div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ============ MODAL: NEW GAME ============ -->
+<div id="modal-create" class="modal-overlay hidden" onclick="closeModal('modal-create')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>🃏 Nieuw spel starten</h3>
+      <button class="modal-close" onclick="closeModal('modal-create')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Punten om te winnen</label>
+        <div class="pts-picker" id="pts-picker">
+          <button class="pts-opt active" onclick="selectPts(this,5)">5</button>
+          <button class="pts-opt" onclick="selectPts(this,7)">7</button>
+          <button class="pts-opt" onclick="selectPts(this,10)">10</button>
+          <button class="pts-opt" onclick="selectPts(this,15)">15</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Eigen zwarte kaarten (optioneel)</label>
+        <div class="custom-card-row">
+          <input id="custom-black-input" type="text" placeholder="Vraag met ___ erin...">
+          <button class="btn-add-card" onclick="Game.addCustomCard('black')">+</button>
+        </div>
+        <div id="custom-black-list" class="custom-cards-preview"></div>
+      </div>
+      <div class="field">
+        <label>Eigen witte kaarten (optioneel)</label>
+        <div class="custom-card-row">
+          <input id="custom-white-input" type="text" placeholder="Jouw antwoord...">
+          <button class="btn-add-card" onclick="Game.addCustomCard('white')">+</button>
+        </div>
+        <div id="custom-white-list" class="custom-cards-preview"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="Game.create()">Spel aanmaken →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: ADD FRIEND ============ -->
+<div id="modal-addfriend" class="modal-overlay hidden" onclick="closeModal('modal-addfriend')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>👥 Vriend toevoegen</h3>
+      <button class="modal-close" onclick="closeModal('modal-addfriend')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Gebruikersnaam van je vriend</label>
+        <input id="addfriend-input" type="text" placeholder="gebruikersnaam" maxlength="20"
+          onkeydown="if(event.key==='Enter')Friends.sendRequest()">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="Friends.sendRequest()">Verzoek sturen →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN: LOBBY ============ -->
+<div id="screen-lobby" class="screen">
+  <header class="game-header">
+    <button class="btn-back-header" onclick="Game.leave()">← Verlaten</button>
+    <div class="game-header-title">🃏 CAH</div>
+    <div class="game-session-id" id="lobby-session-id"></div>
+  </header>
+
+  <div class="lobby-body">
+    <div class="lobby-main">
+      <div class="lobby-card">
+        <h2>Wachtkamer</h2>
+        <p class="lobby-subtitle">Nodig vrienden uit om mee te spelen</p>
+
+        <div class="players-grid" id="lobby-players"></div>
+
+        <div id="lobby-invite-section" class="lobby-invite-section hidden">
+          <h3>Vrienden uitnodigen</h3>
+          <div id="lobby-friend-list" class="lobby-friend-list"></div>
+        </div>
+
+        <div id="lobby-host-controls" class="lobby-host-controls hidden">
+          <div class="settings-row">
+            <span>Punten om te winnen</span>
+            <span id="lobby-maxpts-display" class="settings-value">7</span>
+          </div>
+          <div id="lobby-custom-cards-section">
+            <div class="add-card-row">
+              <input id="lob-black-input" type="text" placeholder="Eigen zwarte kaart (met ___)">
+              <button class="btn-add-card" onclick="Game.lobbyAddCard('black')">+</button>
+            </div>
+            <div class="add-card-row">
+              <input id="lob-white-input" type="text" placeholder="Eigen witte kaart">
+              <button class="btn-add-card" onclick="Game.lobbyAddCard('white')">+</button>
+            </div>
+          </div>
+          <button id="btn-start-game" class="btn-primary btn-start" onclick="Game.start()">
+            🚀 Start het spel!
+          </button>
+          <p id="lobby-min-warn" class="warn-text hidden">⚠️ CAH is het leukst met 3+ spelers</p>
+        </div>
+
+        <div id="lobby-waiting-msg" class="waiting-msg hidden">
+          <div class="loading-dots"><span></span><span></span><span></span></div>
+          Wachten op de host...
+        </div>
+      </div>
+    </div>
+
+    <!-- Lobby Chat -->
+    <div class="lobby-chat">
+      <div class="chat-header">💬 Chat</div>
+      <div class="chat-messages" id="lobby-chat-msgs"></div>
+      <div class="chat-input-row">
+        <input id="lobby-chat-input" type="text" placeholder="Bericht..." maxlength="200"
+          onkeydown="if(event.key==='Enter')Game.sendChat()">
+        <button class="btn-chat-send" onclick="Game.sendChat()">→</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN: GAME ============ -->
+<div id="screen-game" class="screen">
+  <header class="game-header">
+    <button class="btn-back-header" onclick="Game.leave()">← Verlaten</button>
+    <div class="game-header-title">🃏 CAH</div>
+    <div class="score-pills" id="game-score-pills"></div>
+    <button class="btn-icon chat-btn" id="game-chat-btn" onclick="toggleGameChat()">💬</button>
+  </header>
+
+  <div class="game-layout">
+    <div class="game-main" id="game-main">
+      <!-- Rendered by JS -->
+    </div>
+
+    <div class="game-chat-panel hidden" id="game-chat-panel">
+      <div class="chat-header">
+        💬 Chat
+        <button class="chat-close-btn" onclick="toggleGameChat()">✕</button>
+      </div>
+      <div class="chat-messages" id="game-chat-msgs"></div>
+      <div class="chat-input-row">
+        <input id="game-chat-input" type="text" placeholder="Bericht..." maxlength="200"
+          onkeydown="if(event.key==='Enter')Game.sendChat()">
+        <button class="btn-chat-send" onclick="Game.sendChat()">→</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,733 @@
+/* ============================================================
+   CAH FRIENDS — FRONTEND (Vercel + Ably)
+   ============================================================ */
+
+let myUser      = null;
+let myToken     = null;
+let mySession   = null;
+let isHost      = false;
+let friends     = [];
+let currentGs   = null;
+let chatUnread  = 0;
+let selectedPts = 7;
+let customBlack = [];
+let customWhite = [];
+let selectedColor = '#FF6B6B';
+
+// Ably
+let ably            = null;
+let userChannel     = null;
+let sessionChan     = null;
+
+const COLORS = ['#FF6B6B','#4ECDC4','#FFE66D','#A8E6CF','#FF8B94',
+                '#B4F8C8','#A0C4FF','#FFADAD','#C77DFF','#80FFDB'];
+
+// ── Toast ─────────────────────────────────────────────────
+function toast(text, variant = 'default', duration = 3500) {
+  const c = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast toast-${variant}`;
+  el.textContent = text;
+  c.appendChild(el);
+  const remove = () => { el.classList.add('out'); setTimeout(() => el.remove(), 300); };
+  const t = setTimeout(remove, duration);
+  el.addEventListener('click', () => { clearTimeout(t); remove(); });
+}
+
+function showGameInviteToast(data) {
+  const c = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = 'toast toast-info';
+  el.style.cssText = 'cursor:default;padding:0.9rem 1.1rem;min-width:240px;';
+  el.innerHTML = `
+    <div style="font-weight:800;margin-bottom:0.3rem">🃏 Speluitnodiging!</div>
+    <div style="margin-bottom:0.6rem;color:#ccc">${esc(data.from.username)} nodigt je uit voor CAH</div>
+    <button style="padding:0.4rem 1rem;background:var(--accent4);border:none;border-radius:6px;
+      color:white;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem"
+      onclick="Game.joinById('${data.sessionId}',this)">Meedoen →</button>`;
+  c.appendChild(el);
+  const remove = () => { el.classList.add('out'); setTimeout(() => el.remove(), 300); };
+  setTimeout(remove, 20000);
+}
+
+// ── Screen ────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id)?.classList.add('active');
+}
+function closeModal(id) { document.getElementById(id)?.classList.add('hidden'); }
+function openModal(id)  { document.getElementById(id)?.classList.remove('hidden'); }
+
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.auth-form').forEach(f => f.classList.add('hidden'));
+  event.currentTarget.classList.add('active');
+  document.getElementById(`auth-${tab}`)?.classList.remove('hidden');
+}
+
+function initColorPicker() {
+  const picker = document.getElementById('color-picker');
+  if (!picker) return;
+  picker.innerHTML = COLORS.map(c =>
+    `<div class="color-dot ${c === selectedColor ? 'selected' : ''}"
+          style="background:${c}" onclick="selectColor('${c}',this)"></div>`
+  ).join('');
+}
+
+function selectColor(color, el) {
+  selectedColor = color;
+  document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('selected'));
+  el?.classList.add('selected');
+}
+
+// ── API ───────────────────────────────────────────────────
+async function api(url, method = 'GET', body = null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (myToken) opts.headers['Authorization'] = 'Bearer ' + myToken;
+  if (body) opts.body = JSON.stringify(body);
+  try {
+    const r = await fetch(url, opts);
+    const text = await r.text();
+    if (!text) return { ok: true };
+    return JSON.parse(text);
+  } catch (e) {
+    console.error('[api]', url, e);
+    return { error: 'Verbindingsfout' };
+  }
+}
+
+// ── Ably init ─────────────────────────────────────────────
+async function initAbly() {
+  if (ably) return;
+
+  ably = new Ably.Realtime({
+    authUrl: '/api/ably-token',
+    authHeaders: { Authorization: 'Bearer ' + myToken },
+    clientId: myUser.id,
+  });
+
+  await new Promise((resolve, reject) => {
+    ably.connection.once('connected', resolve);
+    ably.connection.once('failed', reject);
+    setTimeout(reject, 10000);
+  });
+
+  console.log('[Ably] connected');
+
+  // Subscribe to personal channel for friend requests & invites
+  userChannel = ably.channels.get(`user-${myUser.id}`);
+
+  userChannel.subscribe('friend-request', (msg) => {
+    toast(`👥 Vriendschapsverzoek van ${msg.data.from.username}!`, 'info', 8000);
+    loadFriends();
+  });
+
+  userChannel.subscribe('friend-accepted', (msg) => {
+    toast(`🎉 ${msg.data.user.username} is nu jouw vriend!`, 'success', 5000);
+    loadFriends();
+  });
+
+  userChannel.subscribe('game-invite', (msg) => {
+    showGameInviteToast(msg.data);
+  });
+}
+
+function joinSessionChannel(sid) {
+  // Leave old channel
+  if (sessionChan) {
+    sessionChan.unsubscribe();
+    sessionChan.detach();
+    sessionChan = null;
+  }
+
+  sessionChan = ably.channels.get(`session-${sid}`);
+
+  sessionChan.subscribe('player-joined', (msg) => {
+    const { player, players } = msg.data;
+    if (mySession) mySession.players = players;
+    renderLobby(players, mySession?.settings, mySession?.id);
+    addSystemMsg(`${player.name} heeft de lobby betreden!`);
+    toast(`${player.name} is meegedaan! 🎮`, 'info');
+  });
+
+  sessionChan.subscribe('player-left', (msg) => {
+    const { players, name, newHostId } = msg.data;
+    if (mySession) {
+      mySession.players = players;
+      if (newHostId === myUser.id) {
+        isHost = true;
+        mySession.isHost = true;
+        toast('Je bent nu de host! 👑', 'info');
+      }
+    }
+    renderLobby(players, mySession?.settings, mySession?.id);
+    addSystemMsg(`${name} heeft de lobby verlaten`);
+  });
+
+  sessionChan.subscribe('settings-update', (msg) => {
+    if (mySession) mySession.settings = msg.data;
+    const el = document.getElementById('lobby-maxpts-display');
+    if (el) el.textContent = msg.data.maxPoints || 7;
+  });
+
+  sessionChan.subscribe('game-state', (msg) => {
+    const { targetUserId, state } = msg.data;
+    if (targetUserId && targetUserId !== myUser.id) return;
+    currentGs = state;
+    if (document.getElementById('screen-lobby').classList.contains('active')) {
+      document.getElementById('game-chat-msgs').innerHTML = '';
+      showScreen('screen-game');
+    }
+    renderGame(state);
+  });
+
+  sessionChan.subscribe('chat-msg', (msg) => {
+    if (msg.data.message.playerId === myUser.id) return;
+    addChatMsg(msg.data.message);
+  });
+}
+
+function leaveSessionChannel() {
+  if (sessionChan) {
+    sessionChan.unsubscribe();
+    sessionChan.detach();
+    sessionChan = null;
+  }
+}
+
+// ── Auth ──────────────────────────────────────────────────
+const Auth = {
+  async login() {
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
+    if (!username || !password) { toast('Vul alles in', 'error'); return; }
+    const r = await api('/api/login', 'POST', { username, password });
+    if (r.error) { toast(r.error, 'error'); return; }
+    saveAuth(r.token, r.user);
+    enterDashboard();
+  },
+
+  async register() {
+    const username = document.getElementById('reg-username').value.trim();
+    const password = document.getElementById('reg-password').value;
+    if (!username || !password) { toast('Vul alles in', 'error'); return; }
+    const r = await api('/api/register', 'POST', { username, password, avatarColor: selectedColor });
+    if (r.error) { toast(r.error, 'error'); return; }
+    saveAuth(r.token, r.user);
+    enterDashboard();
+  },
+
+  logout() {
+    localStorage.removeItem('cah_token');
+    localStorage.removeItem('cah_user');
+    if (ably) { ably.close(); ably = null; userChannel = null; sessionChan = null; }
+    myToken = null; myUser = null; mySession = null; currentGs = null;
+    showScreen('screen-auth');
+  },
+};
+
+function saveAuth(token, user) {
+  myToken = token; myUser = user;
+  localStorage.setItem('cah_token', token);
+  localStorage.setItem('cah_user', JSON.stringify(user));
+}
+
+// ── Dashboard ─────────────────────────────────────────────
+async function enterDashboard() {
+  document.getElementById('dash-username').textContent = myUser.username;
+  const dot = document.getElementById('dash-user-dot');
+  if (dot) dot.style.background = myUser.color || '#4d96ff';
+  showScreen('screen-dashboard');
+  initAbly().catch(e => console.error('[Ably init failed]', e));
+  loadFriends();
+  loadStats();
+  loadLeaderboard();
+}
+
+async function loadFriends() {
+  const r = await api('/api/friends');
+  if (!r.error) friends = r;
+  renderFriendsList();
+  if (mySession && document.getElementById('screen-lobby').classList.contains('active')) {
+    renderLobbyFriendList(mySession.players || []);
+  }
+}
+
+function renderFriendsList() {
+  const list = document.getElementById('friends-list');
+  if (!list) return;
+  if (!friends.length) {
+    list.innerHTML = '<div class="empty-state">Nog geen vrienden. Voeg iemand toe! 👆</div>';
+    return;
+  }
+  const accepted = friends.filter(f => f.status === 'accepted');
+  const pending  = friends.filter(f => f.status === 'pending');
+  let html = '';
+
+  pending.forEach(f => {
+    if (f.direction === 'received') {
+      html += `<div class="friend-row">
+        <div class="friend-avatar" style="background:${f.color}">${f.username[0].toUpperCase()}</div>
+        <div class="friend-name">${esc(f.username)}</div>
+        <span class="pending-badge">verzoek</span>
+        <div class="friend-actions">
+          <button class="btn-friend-action btn-friend-accept" onclick="Friends.accept('${f.friendship_id}')">✓</button>
+          <button class="btn-friend-action btn-friend-decline" onclick="Friends.decline('${f.friendship_id}')">✕</button>
+        </div></div>`;
+    } else {
+      html += `<div class="friend-row">
+        <div class="friend-avatar" style="background:${f.color}">${f.username[0].toUpperCase()}</div>
+        <div class="friend-name">${esc(f.username)}</div>
+        <span class="pending-badge">verstuurd</span></div>`;
+    }
+  });
+
+  accepted.forEach(f => {
+    html += `<div class="friend-row">
+      <div class="friend-avatar" style="background:${f.color}">${f.username[0].toUpperCase()}</div>
+      <div><div class="friend-name">${esc(f.username)}</div></div>
+    </div>`;
+  });
+
+  list.innerHTML = html;
+}
+
+async function loadStats() {
+  const data = await api('/api/me');
+  if (data.error) return;
+  document.getElementById('stat-wins').textContent   = data.wins          || 0;
+  document.getElementById('stat-rounds').textContent = data.rounds_played || 0;
+  document.getElementById('stat-czar').textContent   = data.czar_picks    || 0;
+  document.getElementById('stat-streak').textContent = data.best_streak   || 0;
+}
+
+async function loadLeaderboard() {
+  const list = document.getElementById('leaderboard-list');
+  const data = await api('/api/leaderboard');
+  if (!data || data.error || !data.length) {
+    list.innerHTML = '<div class="empty-state">Nog geen data</div>'; return;
+  }
+  list.innerHTML = data.map((u, i) => `
+    <div class="lb-row">
+      <div class="lb-rank ${i < 3 ? 'top' : ''}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
+      <div class="friend-avatar" style="background:${u.color};width:28px;height:28px;font-size:.75rem">${u.username[0].toUpperCase()}</div>
+      <div class="lb-name">${esc(u.username)}</div>
+      <div><span class="lb-wins">${u.wins}</span><span class="lb-label"> wins</span></div>
+    </div>`).join('');
+}
+
+// ── Friends ───────────────────────────────────────────────
+const Friends = {
+  showAdd() {
+    document.getElementById('addfriend-input').value = '';
+    openModal('modal-addfriend');
+    setTimeout(() => document.getElementById('addfriend-input')?.focus(), 100);
+  },
+
+  async sendRequest() {
+    const username = document.getElementById('addfriend-input').value.trim();
+    if (!username) { toast('Vul een gebruikersnaam in', 'error'); return; }
+    const r = await api('/api/friends', 'POST', { username });
+    if (r.error) { toast(r.error, 'error'); return; }
+    closeModal('modal-addfriend');
+    toast(r.status === 'accepted' ? `Je bent nu vrienden met ${username}! 🎉` : `Verzoek verstuurd naar ${username}!`, 'success');
+    loadFriends();
+  },
+
+  async accept(friendshipId) {
+    const r = await api('/api/friends-action', 'POST', { action: 'accept', friendshipId });
+    if (r.error) { toast(r.error, 'error'); return; }
+    toast('Vriendschapsverzoek geaccepteerd! 🎉', 'success');
+    loadFriends();
+  },
+
+  async decline(friendshipId) {
+    await api('/api/friends-action', 'POST', { action: 'decline', friendshipId });
+    loadFriends();
+  },
+};
+
+// ── Game helpers ──────────────────────────────────────────
+function selectPts(el, pts) {
+  selectedPts = pts;
+  document.querySelectorAll('.pts-opt').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function renderCustomCards() {
+  const bl = document.getElementById('custom-black-list');
+  const wl = document.getElementById('custom-white-list');
+  if (bl) bl.innerHTML = customBlack.map((c, i) =>
+    `<span class="custom-card-chip chip-black">${esc(c.length>30?c.slice(0,30)+'…':c)}
+     <button class="chip-remove" onclick="customBlack.splice(${i},1);renderCustomCards()">✕</button></span>`).join('');
+  if (wl) wl.innerHTML = customWhite.map((c, i) =>
+    `<span class="custom-card-chip chip-white">${esc(c.length>30?c.slice(0,30)+'…':c)}
+     <button class="chip-remove" onclick="customWhite.splice(${i},1);renderCustomCards()">✕</button></span>`).join('');
+}
+
+// ── Game ──────────────────────────────────────────────────
+const Game = {
+  showCreate() {
+    customBlack = []; customWhite = [];
+    renderCustomCards();
+    openModal('modal-create');
+  },
+
+  addCustomCard(type) {
+    const input = document.getElementById(type === 'black' ? 'custom-black-input' : 'custom-white-input');
+    const val = input?.value.trim();
+    if (!val) return;
+    if (type === 'black' && !val.includes('___')) { toast('Zwarte kaart moet ___ bevatten!', 'error'); return; }
+    if (type === 'black') customBlack.push(val); else customWhite.push(val);
+    input.value = '';
+    renderCustomCards();
+  },
+
+  async create() {
+    closeModal('modal-create');
+    const r = await api('/api/session', 'POST', { maxPoints: selectedPts, customBlack, customWhite });
+    if (r.error) { toast(r.error, 'error'); return; }
+    mySession = { id: r.sessionId, isHost: true, players: r.players, settings: r.settings };
+    isHost = true;
+    document.getElementById('lobby-chat-msgs').innerHTML = '';
+    showScreen('screen-lobby');
+    renderLobby(r.players, r.settings, r.sessionId);
+    joinSessionChannel(r.sessionId);
+    loadFriends();
+  },
+
+  async joinById(sessionId, btnEl) {
+    if (btnEl) btnEl.disabled = true;
+    document.querySelectorAll('.toast').forEach(t => { t.classList.add('out'); setTimeout(() => t.remove(), 300); });
+    const r = await api(`/api/session/${sessionId}`, 'POST', { action: 'join' });
+    if (r.error) { toast(r.error, 'error'); return; }
+    mySession = { id: sessionId, isHost: r.isHost, players: r.players, settings: r.settings };
+    isHost = r.isHost;
+    document.getElementById('lobby-chat-msgs').innerHTML = '';
+    showScreen('screen-lobby');
+    renderLobby(r.players, r.settings, sessionId);
+    joinSessionChannel(sessionId);
+    if (r.gameState?.phase) {
+      currentGs = buildClientState(r.gameState, r.players, r.settings?.maxPoints || 7);
+      document.getElementById('game-chat-msgs').innerHTML = '';
+      showScreen('screen-game');
+      renderGame(currentGs);
+    }
+  },
+
+  lobbyAddCard(type) {
+    const input = document.getElementById(type === 'black' ? 'lob-black-input' : 'lob-white-input');
+    const val = input?.value.trim();
+    if (!val) return;
+    if (type === 'black' && !val.includes('___')) { toast('Zwarte kaart moet ___ bevatten!', 'error'); return; }
+    if (!mySession) return;
+    const settings = mySession.settings || {};
+    api(`/api/session/${mySession.id}`, 'POST', {
+      action: 'settings',
+      ...(type === 'black' ? { customBlack: [...(settings.customBlack || []), val] } : {}),
+      ...(type === 'white' ? { customWhite: [...(settings.customWhite || []), val] } : {}),
+    }).then(r => { if (r.error) { toast(r.error, 'error'); return; } toast('✅ Kaart toegevoegd!', 'success'); input.value = ''; });
+  },
+
+  async start() {
+    if (!isHost || !mySession) return;
+    const btn = document.getElementById('btn-start-game');
+    if (btn) btn.disabled = true;
+    const r = await api(`/api/game/${mySession.id}`, 'POST', { action: 'start' });
+    if (r.error) { toast(r.error, 'error'); if (btn) btn.disabled = false; }
+  },
+
+  async inviteFriend(friendId) {
+    if (!mySession) return;
+    const r = await api(`/api/session/${mySession.id}`, 'POST', { action: 'invite', friendId });
+    if (r.error) { toast(r.error, 'error'); return; }
+    toast('Uitnodiging verstuurd! 📨', 'success');
+  },
+
+  async leave() {
+    if (!confirm('Weet je zeker dat je wilt verlaten?')) return;
+    if (mySession) {
+      await api(`/api/session/${mySession.id}`, 'POST', { action: 'leave' }).catch(() => {});
+      leaveSessionChannel();
+    }
+    mySession = null; currentGs = null; isHost = false;
+    showScreen('screen-dashboard');
+    loadFriends(); loadStats();
+  },
+
+  sendChat() {
+    const inLobby = document.getElementById('screen-lobby').classList.contains('active');
+    const inputId = inLobby ? 'lobby-chat-input' : 'game-chat-input';
+    const input = document.getElementById(inputId);
+    const text = input?.value.trim();
+    if (!text || !mySession) return;
+    input.value = '';
+    addChatMsg({ playerId: myUser.id, playerName: myUser.username, playerColor: myUser.color, text });
+    api('/api/chat', 'POST', { sessionId: mySession.id, text }).catch(() => {});
+  },
+};
+
+function buildClientState(gs, players, maxPoints) {
+  return {
+    ...gs,
+    myHand: gs.hands?.[myUser.id] || [],
+    hasSubmitted: !!gs.submissions?.[myUser.id],
+    mySubmission: gs.submissions?.[myUser.id] || null,
+    submittedIds: Object.keys(gs.submissions || {}),
+    czarName: players.find(p => p.userId === gs.czar)?.name || '?',
+    lastWinnerName: players.find(p => p.userId === gs.lastWinner)?.name || '?',
+    maxPoints,
+    players: players.map(p => ({ id: p.userId, name: p.name, color: p.color, isHost: p.isHost, score: gs.scores?.[p.userId] || 0 })),
+  };
+}
+
+// ── Lobby render ──────────────────────────────────────────
+function renderLobby(players, settings, sessionId) {
+  const sidEl = document.getElementById('lobby-session-id');
+  if (sidEl) sidEl.textContent = sessionId || '';
+  const mptsEl = document.getElementById('lobby-maxpts-display');
+  if (mptsEl) mptsEl.textContent = settings?.maxPoints || 7;
+
+  const grid = document.getElementById('lobby-players');
+  if (grid) {
+    grid.innerHTML = players.map(p => `
+      <div class="player-row">
+        <div class="player-avatar" style="background:${p.color}">${p.name[0].toUpperCase()}</div>
+        <div class="player-name">${esc(p.name)}${p.userId === myUser?.id ? '<span class="player-you">(jij)</span>' : ''}</div>
+        ${p.isHost ? '<span class="player-host">👑 Host</span>' : '<span style="color:var(--text3);font-size:.75rem">🎮</span>'}
+      </div>`).join('');
+  }
+
+  const hostCtrl  = document.getElementById('lobby-host-controls');
+  const waitMsg   = document.getElementById('lobby-waiting-msg');
+  const inviteSec = document.getElementById('lobby-invite-section');
+
+  if (isHost) {
+    hostCtrl?.classList.remove('hidden');
+    waitMsg?.classList.add('hidden');
+    inviteSec?.classList.remove('hidden');
+    const warn = document.getElementById('lobby-min-warn');
+    if (players.length < 3) warn?.classList.remove('hidden'); else warn?.classList.add('hidden');
+    renderLobbyFriendList(players);
+  } else {
+    hostCtrl?.classList.add('hidden');
+    waitMsg?.classList.remove('hidden');
+    inviteSec?.classList.add('hidden');
+  }
+}
+
+function renderLobbyFriendList(currentPlayers) {
+  const list = document.getElementById('lobby-friend-list');
+  if (!list) return;
+  const accepted = friends.filter(f => f.status === 'accepted');
+  if (!accepted.length) { list.innerHTML = '<div class="empty-state" style="padding:.75rem">Nog geen vrienden</div>'; return; }
+  const inGame = new Set(currentPlayers.map(p => p.userId));
+  list.innerHTML = accepted.map(f => `
+    <div class="lobby-friend-row">
+      <div class="friend-avatar" style="background:${f.color};width:28px;height:28px;font-size:.75rem">${f.username[0].toUpperCase()}</div>
+      <div class="friend-name">${esc(f.username)}</div>
+      ${inGame.has(f.id)
+        ? '<span style="font-size:.75rem;color:var(--accent3)">✓ In spel</span>'
+        : `<button class="btn-friend-action btn-friend-invite" onclick="Game.inviteFriend('${f.id}')">Uitnodigen</button>`}
+    </div>`).join('');
+}
+
+// ── Game render ───────────────────────────────────────────
+function renderGame(state) {
+  currentGs = state;
+  const main = document.getElementById('game-main');
+  if (!main) return;
+  const pills = document.getElementById('game-score-pills');
+  if (pills) {
+    pills.innerHTML = (state.players || []).map(p => {
+      const czar = p.id === state.czar;
+      return `<div class="score-pill ${czar?'czar':''}" style="background:${p.color}22;border-color:${p.color}66;color:${p.color}">
+        ${czar?'👑 ':''}${esc(p.name)}: ${p.score}</div>`;
+    }).join('');
+  }
+  switch (state.phase) {
+    case 'playing': renderPlaying(main, state); break;
+    case 'judging': renderJudging(main, state); break;
+    case 'scores':  renderScores(main, state);  break;
+  }
+}
+
+function renderPlaying(main, state) {
+  const isCzar = state.czar === myUser?.id;
+  const needed = (state.players?.length || 1) - 1;
+  const subCount = state.submittedIds?.length || 0;
+  main.innerHTML = `
+    <div class="cah-round-bar">
+      <span class="cah-round-label">Ronde ${state.round}</span>
+      <span class="cah-czar-label">🎩 Tsaar: <strong>${esc(state.czarName)}</strong></span>
+    </div>
+    <div class="black-card">
+      <div class="black-card-corner">CAH</div>
+      <div class="black-card-text">${esc(state.currentBlack || '')}</div>
+      <div class="black-card-pick">Kies 1</div>
+    </div>
+    ${isCzar ? `
+      <div class="czar-waiting-box">
+        <div class="czar-icon">👑</div>
+        <div class="czar-box-title">Jij bent de Kaart Tsaar!</div>
+        <div class="czar-box-sub">Wacht tot iedereen een kaart heeft gespeeld.</div>
+        <div class="submitted-count">${subCount} / ${needed} ingestuurd</div>
+      </div>`
+    : state.hasSubmitted ? `
+      <div class="submitted-box">
+        <div class="czar-icon">✅</div>
+        <div class="czar-box-title">Kaart gespeeld!</div>
+        <div class="submitted-card-preview">"${esc(state.mySubmission || '')}"</div>
+        <div class="submitted-count">${subCount} / ${needed} ingestuurd</div>
+      </div>`
+    : `
+      <div class="hand-label">Kies jouw grappigste antwoord:</div>
+      <div class="white-cards-grid">
+        ${(state.myHand || []).map(card => `
+          <div class="white-card" onclick="CAH.submit(this,${JSON.stringify(card)})">
+            <div class="white-card-text">${esc(card)}</div>
+            <div class="white-card-brand">🂠</div>
+          </div>`).join('')}
+      </div>`}`;
+}
+
+function renderJudging(main, state) {
+  const isCzar = state.czar === myUser?.id;
+  const shuffled = [...Object.values(state.submissions || {})].sort(() => Math.random() - 0.5);
+  main.innerHTML = `
+    <div class="cah-round-bar"><span class="cah-round-label">Ronde ${state.round}</span></div>
+    <div class="black-card">
+      <div class="black-card-corner">CAH</div>
+      <div class="black-card-text">${esc(state.currentBlack || '')}</div>
+    </div>
+    <div class="judge-header">
+      ${isCzar ? '<h3>👑 Kies de grappigste kaart!</h3>' : '<h3>🤔 De Tsaar kiest de winnaar...</h3>'}
+    </div>
+    <div class="judge-grid">
+      ${shuffled.map(card => `
+        <div class="white-card ${isCzar?'judge-card':''}"
+          ${isCzar?`onclick="CAH.pickWinner(${JSON.stringify(card)})"` : 'style="cursor:default"'}>
+          <div class="white-card-text">${esc(card)}</div>
+          <div class="white-card-brand">🂠</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderScores(main, state) {
+  const maxPts = state.maxPoints || 7;
+  const roundWinner = state.players?.find(p => p.id === state.lastWinner);
+  const gameWinner  = state.players?.find(p => p.id === state.winner);
+  let html = '';
+  if (state.winner) {
+    html += `<div class="game-winner-banner">
+      <span class="winner-crown">🏆</span>
+      <div class="winner-name">${esc(gameWinner?.name || '?')} WINT!</div>
+      <div class="winner-sub">Absolute legend.</div>
+    </div>`;
+  } else if (roundWinner) {
+    html += `<div class="round-winner-banner">
+      <div class="czar-icon">🎉</div>
+      <div class="czar-box-title">${esc(roundWinner.name)} wint deze ronde!</div>
+      <div class="winning-card-display">"${esc(state.lastWinningCard || '')}"</div>
+    </div>`;
+  }
+  html += '<div class="scores-list">';
+  [...(state.players || [])].sort((a,b) => (state.scores?.[b.id]||0)-(state.scores?.[a.id]||0)).forEach(p => {
+    const pts = state.scores?.[p.id] || 0;
+    html += `<div class="score-row ${p.id===state.lastWinner?'is-winner':''}">
+      <div class="friend-avatar" style="background:${p.color};width:28px;height:28px;font-size:.75rem;flex-shrink:0">${p.name[0].toUpperCase()}</div>
+      <div class="score-player-name">${esc(p.name)}</div>
+      <div class="score-bar-wrap"><div class="score-bar" style="width:${Math.min(100,(pts/maxPts)*100)}%"></div></div>
+      <div class="score-pts">${pts}/${maxPts}</div>
+    </div>`;
+  });
+  html += '</div>';
+  if (isHost) {
+    html += `<button class="btn-next-round" onclick="CAH.nextRound()">${state.winner ? '🔄 Nieuw spel' : '➡️ Volgende ronde'}</button>`;
+  } else {
+    html += `<div class="waiting-msg"><div class="loading-dots"><span></span><span></span><span></span></div>Wachten op host...</div>`;
+  }
+  main.innerHTML = html;
+}
+
+// ── CAH ───────────────────────────────────────────────────
+const CAH = {
+  submit(el, card) {
+    document.querySelectorAll('.white-card').forEach(c => c.classList.remove('selected'));
+    el?.classList.add('selected');
+    setTimeout(() => api(`/api/game/${mySession.id}`, 'POST', { action: 'submit', card })
+      .then(r => { if (r.error) toast(r.error, 'error'); }), 200);
+  },
+  pickWinner(card) {
+    api(`/api/game/${mySession.id}`, 'POST', { action: 'pick-winner', card })
+      .then(r => { if (r.error) toast(r.error, 'error'); });
+  },
+  nextRound() {
+    api(`/api/game/${mySession.id}`, 'POST', { action: 'next-round' })
+      .then(r => { if (r.error) toast(r.error, 'error'); });
+  },
+};
+
+// ── Chat ──────────────────────────────────────────────────
+function addChatMsg(msg) {
+  const inLobby = document.getElementById('screen-lobby').classList.contains('active');
+  const el = document.getElementById(inLobby ? 'lobby-chat-msgs' : 'game-chat-msgs');
+  if (!el) return;
+  const isMe = msg.playerId === myUser?.id;
+  const div = document.createElement('div');
+  div.className = `chat-msg ${isMe ? 'mine' : ''}`;
+  div.innerHTML = `<div class="chat-msg-name" style="color:${msg.playerColor||'#aaa'}">${esc(msg.playerName||'')}</div>
+    <div class="chat-msg-text">${esc(msg.text||'')}</div>`;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+  if (!inLobby && document.getElementById('game-chat-panel')?.classList.contains('hidden') && !isMe) {
+    chatUnread++;
+    document.querySelector('.chat-btn-badge')?.classList.add('show');
+  }
+}
+
+function addSystemMsg(text) {
+  const inLobby = document.getElementById('screen-lobby').classList.contains('active');
+  const el = document.getElementById(inLobby ? 'lobby-chat-msgs' : 'game-chat-msgs');
+  if (!el) return;
+  const div = document.createElement('div');
+  div.className = 'chat-msg system';
+  div.textContent = text;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function toggleGameChat() {
+  const panel = document.getElementById('game-chat-panel');
+  panel?.classList.toggle('hidden');
+  if (!panel?.classList.contains('hidden')) {
+    chatUnread = 0;
+    document.querySelector('.chat-btn-badge')?.classList.remove('show');
+    const msgs = document.getElementById('game-chat-msgs');
+    if (msgs) msgs.scrollTop = msgs.scrollHeight;
+  }
+}
+
+function esc(str) {
+  if (typeof str !== 'string') return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+// ── Init ──────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  initColorPicker();
+  document.getElementById('login-username')?.addEventListener('keydown', e => { if (e.key==='Enter') Auth.login(); });
+  document.getElementById('login-password')?.addEventListener('keydown', e => { if (e.key==='Enter') Auth.login(); });
+  document.getElementById('reg-password')?.addEventListener('keydown',   e => { if (e.key==='Enter') Auth.register(); });
+  document.getElementById('addfriend-input')?.addEventListener('keydown',e => { if (e.key==='Enter') Friends.sendRequest(); });
+
+  const savedToken = localStorage.getItem('cah_token');
+  const savedUser  = localStorage.getItem('cah_user');
+  if (savedToken && savedUser) {
+    try { myToken = savedToken; myUser = JSON.parse(savedUser); enterDashboard(); }
+    catch { showScreen('screen-auth'); }
+  } else {
+    showScreen('screen-auth');
+  }
+});

@@ -1,7 +1,6 @@
 {
   "rewrites": [
     { "source": "/api/session/:id", "destination": "/api/session/[id]" },
-    { "source": "/api/game/:id",    "destination": "/api/game/[id]" },
     { "source": "/api/(.*)",        "destination": "/api/$1" },
     { "source": "/((?!api).*)",     "destination": "/index.html" }
   ]
